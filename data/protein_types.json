@@ -1,0 +1,48 @@
+{
+    "protein_types": [
+        {
+            "category": "Poultry",
+            "examples": [
+                "Chicken",
+                "Turkey",
+                "Duck"
+            ]
+        },
+        {
+            "category": "Red Meat",
+            "examples": [
+                "Beef",
+                "Pork",
+                "Lamb"
+            ]
+        },
+        {
+            "category": "Seafood",
+            "examples": [
+                "Salmon",
+                "White Fish",
+                "Shrimp",
+                "Shellfish"
+            ]
+        },
+        {
+            "category": "Vegetarian",
+            "examples": [
+                "Tofu",
+                "Beans",
+                "Lentils",
+                "Eggs",
+                "Halloumi"
+            ]
+        },
+        {
+            "category": "Vegan",
+            "examples": [
+                "Tofu",
+                "Tempeh",
+                "Legumes",
+                "Seitan"
+            ]
+        }
+    ]
+}

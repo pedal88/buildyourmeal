@@ -1,0 +1,31 @@
+{
+    "meal_classification": {
+        "Standard": [
+            "Breakfast",
+            "Lunch",
+            "Dinner",
+            "Snacks",
+            "Desserts"
+        ],
+        "Courses": [
+            "Main Dish",
+            "Appetizers",
+            "Sides",
+            "Soups",
+            "Salads",
+            "Beverages"
+        ],
+        "Other": [
+            "Meal Prep",
+            "Freezer Friendly",
+            "Slow Cooker",
+            "One-Pot"
+        ],
+        "Holidays": [
+            "Christmas",
+            "Easter",
+            "Thanksgiving",
+            "Halloween"
+        ]
+    }
+}

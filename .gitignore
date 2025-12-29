@@ -1,0 +1,29 @@
+# Secrets
+.env
+.env.local
+
+# Database
+instance/
+*.db
+*.sqlite3
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+.DS_Store
+
+# Generated Content (Keep folder, ignore files)
+static/recipes/*
+!static/recipes/.gitkeep
+
+static/pantry/*
+!static/pantry/.gitkeep
+
+static/temp/*
+!static/temp/.gitkeep
+
+# IDEs
+.vscode/
+.idea/

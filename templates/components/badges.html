@@ -1,0 +1,29 @@
+{% macro difficulty_pill(level) %}
+{% set colors = {
+'Simplistic': 'bg-green-100 text-green-800 border-green-200',
+'Moderate': 'bg-orange-100 text-orange-800 border-orange-200',
+'Elevated': 'bg-rose-100 text-rose-800 border-rose-200'
+} %}
+<span
+    class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide border {{ colors.get(level, 'bg-slate-100 text-slate-800 border-slate-200') }}">
+    {{ level }}
+</span>
+{% endmacro %}
+
+{% macro tag_pill(text, color='orange') %}
+{% set bg = 'bg-' ~ color ~ '-50' %}
+{% set txt = 'text-' ~ color ~ '-700' %}
+{% set ring = 'ring-' ~ color ~ '-700/10' %}
+<span
+    class="inline-flex items-center rounded-md px-2 py-1 text-xs font-medium {{ bg }} {{ txt }} ring-1 ring-inset {{ ring }}">
+    {{ text }}
+</span>
+{% endmacro %}
+
+{% macro icon_stat(icon, value, label) %}
+<div class="flex flex-col items-center">
+    <span class="text-2xl mb-1">{{ icon }}</span>
+    <span class="font-bold text-slate-900">{{ value }}</span>
+    <span class="text-xs text-slate-500 uppercase tracking-wider">{{ label }}</span>
+</div>
+{% endmacro %}

@@ -1,0 +1,84 @@
+{% macro visual_ingredient(ingredient, size='md') %}
+{#
+A specialized macro to display an ingredient with its image.
+Relies on the 100% coverage provided by static/pantry/
+#}
+{% set size_classes = {
+'sm': 'w-12 h-12',
+'md': 'w-16 h-16',
+'lg': 'w-24 h-24',
+'xl': 'w-full aspect-square'
+} %}
+
+<div class="group flex flex-col items-center {% if size == 'xl' %}w-full{% endif %}">
+    <div
+        class="relative {{ size_classes[size] }} {% if size != 'xl' %}rounded-lg border border-slate-100 p-1{% else %}rounded-md{% endif %} bg-white shadow-sm overflow-hidden transition-transform group-hover:scale-105 group-hover:shadow-md">
+        {% if ingredient.image_url %}
+        <img src="{{ url_for('static', filename=ingredient.image_url) }}" alt="{{ ingredient.name }}"
+            class="w-full h-full {% if size == 'xl' %}object-cover{% else %}object-contain{% endif %}" loading="lazy">
+        {% else %}
+        <!-- Fallback Gradient (should rarely adhere with 100% coverage) -->
+        <div
+            class="w-full h-full bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-xs text-slate-400 font-bold">
+            {{ ingredient.name[:2] | upper }}
+        </div>
+        {% endif %}
+    </div>
+    <span
+        class="mt-2 text-xs font-medium text-slate-600 text-center leading-tight {% if size != 'xl' %}max-w-[4rem] truncate{% endif %}">
+        {{ ingredient.name }}
+    </span>
+    {% if ingredient.amount %}
+    <span class="text-[10px] text-slate-400">
+        {{ ingredient.amount }}{{ ingredient.unit }}
+    </span>
+    {% endif %}
+</div>
+{% endmacro %}
+
+{% macro recipe_preview_card(recipe, id) %}
+<a href="/recipe/{{ id }}"
+    class="group block h-full bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-orange-200 transition-all duration-300 overflow-hidden flex flex-col">
+    <!-- Image / Gradient Placeholder -->
+    <div class="h-48 bg-slate-100 relative overflow-hidden">
+        {% if recipe.image_filename %}
+        <img src="{{ url_for('static', filename='recipes/' + recipe.image_filename) }}" alt="{{ recipe.title }}"
+            class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+        {% else %}
+        <!-- Contextual Placeholder -->
+        <div class="absolute inset-0 bg-gradient-to-br from-orange-50 to-orange-100 flex items-center justify-center">
+            <span class="text-4xl">🍳</span>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="p-5 flex flex-col flex-grow">
+        <!-- Meta -->
+        <div class="flex items-center gap-2 mb-3">
+            <span class="text-xs font-bold text-orange-600 uppercase tracking-wide">{{ recipe.cuisine }}</span>
+            <span class="text-slate-300">•</span>
+            <span class="text-xs text-slate-500">{{ recipe.difficulty }}</span>
+        </div>
+
+        <!-- Title -->
+        <h3
+            class="font-serif text-xl font-bold text-slate-900 mb-2 group-hover:text-orange-600 transition-colors line-clamp-2">
+            {{ recipe.title }}
+        </h3>
+
+        <!-- Tags -->
+        <div class="mt-auto pt-4 flex gap-2 overflow-x-auto hide-scrollbar">
+            <span
+                class="inline-flex items-center rounded-md bg-slate-50 px-2 py-1 text-xs font-medium text-slate-600 ring-1 ring-inset ring-slate-500/10">
+                {{ recipe.diet }}
+            </span>
+            {% if recipe.protein_type %}
+            <span
+                class="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">
+                {{ recipe.protein_type }}
+            </span>
+            {% endif %}
+        </div>
+    </div>
+</a>
+{% endmacro %}

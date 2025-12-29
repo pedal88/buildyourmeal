@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% import "components/typography.html" as type %}
+{% import "components/badges.html" as badge %}
+
+{% block title %}Chef Personas - The AI Kitchen{% endblock %}
+
+{% block content %}
+<div class="bg-white py-12 lg:py-16">
+    <div class="mx-auto max-w-7xl px-6 lg:px-8">
+        {{ type.page_header('Chef Personalities', 'Comparing the distinct brains driving your AI.') }}
+
+        <!-- Comparison Grid -->
+        <div class="mt-16 grid grid-cols-1 gap-8 lg:grid-cols-2">
+            {% for chef in chefs %}
+            <div
+                class="flex flex-col bg-slate-50 rounded-3xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+
+                <!-- HEADER (Avatar + Name) -->
+                <div class="p-8 border-b border-slate-200 bg-white flex items-center gap-6">
+                    <div
+                        class="h-20 w-20 flex-shrink-0 rounded-full bg-slate-100 border-2 border-slate-200 flex items-center justify-center text-4xl shadow-inner">
+                        {% if chef.id == 'gourmet' %}👨‍🍳{% else %}🚀{% endif %}
+                    </div>
+                    <div>
+                        <h3 class="text-3xl font-serif font-bold text-slate-900">{{ chef.name }}</h3>
+                        <p class="text-sm font-bold text-slate-400 uppercase tracking-widest mt-1">ID: {{ chef.id }}</p>
+                    </div>
+                </div>
+
+                <!-- SHORT BIO (Fixed Height Slot) -->
+                <div class="p-8 border-b border-slate-200 min-h-[120px] flex flex-col justify-center">
+                    <span class="text-xs font-bold text-slate-400 uppercase mb-2">Archetype</span>
+                    <p class="text-xl font-medium text-orange-600 font-serif leading-tight">
+                        {{ chef.short_bio }}
+                    </p>
+                </div>
+
+                <!-- UNIFIED EDIT FORM -->
+                <form action="/chefs/save" method="POST" class="flex-grow flex flex-col">
+                    <input type="hidden" name="chef_id" value="{{ chef.id }}">
+                    {% set dna = chef.system_prompt | parse_chef_dna %}
+
+                    <!-- SECTION 1: CORE PERSONA -->
+                    <div class="p-8 border-b border-slate-200 space-y-6">
+                        <!-- Role -->
+                        <div>
+                            <label
+                                class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Role</label>
+                            <input type="text" name="role" value="{{ dna.Role[0] if dna.Role else '' }}"
+                                class="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1 text-sm font-bold text-slate-900 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500">
+                        </div>
+
+                        <!-- Philosophy -->
+                        <div>
+                            <label
+                                class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Philosophy</label>
+                            <textarea name="philosophy" rows="3"
+                                class="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1 text-sm text-slate-600 leading-relaxed focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500 resize-none">{{ dna.Philosophy[0] if dna.Philosophy else '' }}</textarea>
+                        </div>
+
+                        <!-- Tone -->
+                        <div>
+                            <label
+                                class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Tone</label>
+                            <div class="relative">
+                                <span class="absolute left-3 top-1.5 text-orange-300 italic">"</span>
+                                <input type="text" name="tone" value="{{ dna.Tone[0] if dna.Tone else '' }}"
+                                    class="w-full bg-slate-50 border border-slate-200 rounded pl-6 pr-2 py-1 text-sm text-slate-600 italic focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500">
+                                <span class="absolute right-3 top-1.5 text-orange-300 italic">"</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- INTERLUDE: TAGS (Read-Only) -->
+                    <div class="p-8 border-b border-slate-200 bg-slate-50/50">
+                        <span class="text-xs font-bold text-slate-400 uppercase mb-3 block">Traits (Fixed)</span>
+                        <div class="flex flex-wrap gap-2">
+                            {% for tag in chef.style_tags %}
+                            {{ badge.tag_pill(tag, 'slate') }}
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- SECTION 2: RULES -->
+                    <div class="p-8 bg-slate-50 flex-grow flex flex-col border-b border-slate-200">
+                        <label class="text-[10px] font-bold text-orange-500 uppercase tracking-widest block mb-2">Key
+                            Rules (One per line)</label>
+                        <textarea name="rules"
+                            class="w-full flex-grow bg-white border border-slate-200 rounded p-4 font-mono text-xs text-slate-600 leading-relaxed focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500 resize-none min-h-[150px]">{{ dna.Rules | join('\n') if dna.Rules else '' }}</textarea>
+                    </div>
+
+                    <!-- ACTIONS -->
+                    <div class="p-4 bg-white border-t border-slate-100 flex gap-2">
+                        <button type="submit"
+                            class="flex-1 rounded-xl bg-slate-800 py-3 text-sm font-bold text-white hover:bg-slate-700 transition-all duration-200">
+                            Save Changes
+                        </button>
+                        <button type="button" onclick="window.location.href='/?chef={{ chef.id }}'"
+                            class="flex-1 rounded-xl bg-orange-600 py-3 text-sm font-bold text-white hover:bg-orange-500 transition-all duration-200">
+                            Select Chef
+                        </button>
+                    </div>
+                </form>
+
+
+
+
+
+
+
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Custom scrollbar for the prompt box */
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: #1e293b;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #475569;
+        border-radius: 4px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: #64748b;
+    }
+</style>
+{% endblock %}

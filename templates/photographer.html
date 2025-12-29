@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+{% import "components/typography.html" as type %}
+
+{% block title %}Photographer Studio - The AI Kitchen{% endblock %}
+
+{% block content %}
+<div class="bg-zinc-900 min-h-screen text-zinc-100 pb-24">
+
+    <!-- Studio Header -->
+    <div class="border-b border-zinc-800 bg-zinc-950 px-6 py-6">
+        <div class="mx-auto max-w-7xl flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <div
+                    class="h-12 w-12 rounded-full bg-indigo-500 flex items-center justify-center text-2xl shadow-lg shadow-indigo-500/20">
+                    📸
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold text-white tracking-wide">Studio: {{ config.name }}</h1>
+                    <div class="flex items-center gap-3">
+                        <p class="text-xs text-zinc-400 uppercase tracking-widest">{{ config.role }}</p>
+                        {% if recipe_id %}
+                        <span class="px-2 py-0.5 rounded bg-zinc-800 text-[10px] text-zinc-400 border border-zinc-700">
+                            Recipe #{{ recipe_id }}
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-4">
+                {% if recipe_id %}
+                <a href="/recipe/{{ recipe_id }}"
+                    class="text-xs font-bold text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                    </svg>
+                    Back to Recipe
+                </a>
+                {% endif %}
+
+                <div class="hidden md:block text-right">
+                    <span
+                        class="px-3 py-1 bg-zinc-800 rounded-full text-xs font-mono text-zinc-400 border border-zinc-700">
+                        Target: {{ config.target_model }}
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mx-auto max-w-7xl px-6 py-12">
+
+        <!-- Main Workspace -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+
+            <!-- Left: The Concept (Input) -->
+            <div class="flex flex-col gap-6">
+                <div class="flex items-center gap-2 text-indigo-400">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                        </path>
+                    </svg>
+                    <h2 class="font-bold uppercase tracking-wider text-sm">1. The Concept</h2>
+                </div>
+
+                <form action="/photographer" method="POST" class="flex-grow flex flex-col">
+                    <input type="hidden" name="recipe_id" value="{{ recipe_id if recipe_id }}">
+                    <input type="hidden" name="ingredients_list" value="{{ ingredients_list if ingredients_list }}">
+                    <textarea name="recipe_text"
+                        class="w-full h-96 bg-zinc-800 border-zinc-700 rounded-xl p-6 text-zinc-300 focus:ring-indigo-500 focus:border-indigo-500 font-serif leading-relaxed resize-none shadow-inner"
+                        placeholder="Paste your full recipe here... Title, ingredients, instructions."
+                        required>{{ recipe_text if recipe_text else '' }}</textarea>
+
+                    <button type="submit"
+                        class="mt-4 w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-900/20 transition-all flex items-center justify-center gap-2">
+                        <span>✨</span> Generate Visual Prompt
+                    </button>
+                </form>
+            </div>
+
+            <!-- Right: The Visuals (Output) -->
+            <div class="flex flex-col gap-6">
+                <!-- Step 2: visual Prompt -->
+                <div class="flex items-center gap-2 text-green-400">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z">
+                        </path>
+                    </svg>
+                    <h2 class="font-bold uppercase tracking-wider text-sm">2. The Visual Prompt</h2>
+                </div>
+
+                {% if prompt %}
+                <div class="bg-black/50 border border-zinc-700 rounded-xl p-6 relative group">
+                    <p class="font-mono text-xs text-zinc-400 leading-relaxed max-h-[200px] overflow-y-auto">
+                        {{ prompt }}
+                    </p>
+                    <!-- Copy Button -->
+                    <button onclick="navigator.clipboard.writeText(`{{ prompt }}`)"
+                        class="absolute top-4 right-4 text-zinc-500 hover:text-white transition-colors">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 012-2v-8a2 2 0 01-2-2h-8a2 2 0 01-2 2v8a2 2 0 012 2z">
+                            </path>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Step 3: Snap -->
+                <div class="border-t border-zinc-800 pt-8 mt-4">
+                    <div class="flex items-center gap-2 text-pink-400 mb-4">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z">
+                            </path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        </svg>
+                        <h2 class="font-bold uppercase tracking-wider text-sm">3. The Shot</h2>
+                    </div>
+
+                    <form action="/photographer/snap" method="POST">
+                        <input type="hidden" name="visual_prompt" value="{{ prompt }}">
+                        <input type="hidden" name="recipe_text" value="{{ recipe_text }}">
+                        <input type="hidden" name="recipe_id" value="{{ recipe_id if recipe_id }}">
+                        <input type="hidden" name="ingredients_list" value="{{ ingredients_list if ingredients_list }}">
+                        <button type="submit"
+                            class="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-bold py-4 rounded-xl border border-zinc-600 transition-all flex items-center justify-center gap-3 group">
+                            <span class="group-hover:scale-110 transition-transform">📸</span>
+                            Generate with {{ config.target_model }}
+                        </button>
+                    </form>
+                </div>
+
+                {% else %}
+                <div
+                    class="h-64 border-2 border-dashed border-zinc-800 rounded-xl flex items-center justify-center text-zinc-600">
+                    <p>waiting for concept...</p>
+                </div>
+                {% endif %}
+
+            </div>
+        </div>
+
+        <!-- Result Overlay -->
+        {% if temp_image %}
+        <div class="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 backdrop-blur-sm"
+            id="resultOverlay">
+            <div
+                class="relative max-w-4xl w-full bg-zinc-900 rounded-2xl overflow-hidden shadow-2xl border border-zinc-800">
+                <button onclick="document.getElementById('resultOverlay').remove()"
+                    class="absolute top-4 right-4 z-10 bg-black/50 hover:bg-black rounded-full p-2 text-white transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                        </path>
+                    </svg>
+                </button>
+
+                <div class="aspect-video w-full max-h-[60vh] bg-black flex items-center justify-center">
+                    <img src="{{ url_for('static', filename='temp/' + temp_image) }}" alt="Generated Food"
+                        class="max-h-full max-w-full object-contain shadow-2xl">
+                </div>
+
+                <div class="p-6 flex items-center justify-between bg-zinc-900">
+                    <div>
+                        <h3 class="text-white font-bold">Image Generated</h3>
+                        <p class="text-xs text-zinc-400">Prompt: {{ prompt[:50] }}...</p>
+                    </div>
+
+                    <div class="flex gap-4">
+                        {% if recipe_id %}
+                        <form action="/photographer/save" method="POST">
+                            <input type="hidden" name="filename" value="{{ temp_image }}">
+                            <input type="hidden" name="recipe_id" value="{{ recipe_id }}">
+                            <button type="submit"
+                                class="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold text-sm transition-colors flex items-center gap-2">
+                                <span>💾</span> Save to Recipe
+                            </button>
+                        </form>
+                        {% endif %}
+
+                        <a href="{{ url_for('static', filename='temp/' + temp_image) }}" download="food_shot.png"
+                            class="px-6 py-2 bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg font-bold text-sm transition-colors">
+                            Download PNG
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+</div>
+{% endblock %}

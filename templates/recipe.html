@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+{% import "components/typography.html" as type %}
+{% import "components/badges.html" as badge %}
+{% import "components/cards.html" as card %}
+
+{% block title %}{{ recipe.title }} - The AI Kitchen{% endblock %}
+
+{% block content %}
+<div class="max-w-screen-2xl mx-auto px-4 py-8 lg:py-12">
+
+    <!-- Navigation Back -->
+    <a href="/"
+        class="inline-flex items-center text-sm font-medium text-slate-500 hover:text-orange-600 mb-8 transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
+            <path d="m15 18-6-6 6-6" />
+        </svg>
+        Back to Kitchen
+    </a>
+
+    <!-- Full Width Hero Image -->
+    <div
+        class="relative w-full aspect-video md:aspect-[21/9] rounded-3xl overflow-hidden shadow-xl mb-12 bg-orange-50 group border border-slate-200">
+        {% if recipe.image_filename %}
+        <img src="{{ url_for('static', filename='recipes/' + recipe.image_filename) }}" alt="{{ recipe.title }}"
+            class="w-full h-full object-cover">
+        {% else %}
+        <!-- Contextual Placeholder -->
+        <div class="absolute inset-0 bg-gradient-to-br from-orange-50 to-white opacity-50"></div>
+        <div class="absolute inset-0 flex items-center justify-center">
+            <span
+                class="text-9xl opacity-20 transform group-hover:scale-110 transition-transform duration-700">🍽️</span>
+        </div>
+        {% endif %}
+
+        <!-- Subtle Retake/Generate Button -->
+        <div class="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+            <form id="photoForm" action="/photographer" method="POST">
+                <input type="hidden" name="recipe_id" value="{{ recipe.id }}">
+                <input type="hidden" name="ingredients_list"
+                    value="{% for item in recipe.ingredients %}{{ item.ingredient.name }}, {% endfor %}">
+                <textarea name="recipe_text" class="hidden">
+Recipe Title: {{ recipe.title }}
+Cuisine: {{ recipe.cuisine }}
+Diet: {{ recipe.diet }}
+Difficulty: {{ recipe.difficulty }}
+Protein: {{ recipe.protein_type }}
+
+Ingredients:
+{% for item in recipe.ingredients %}
+- {{ item.amount }} {{ item.unit }} {{ item.ingredient.name }} ({{ item.component }})
+{% endfor %}
+                </textarea>
+
+                <button type="submit"
+                    title="{% if recipe.image_filename %}Retake Photo{% else %}Generate Photo{% endif %}"
+                    class="h-10 w-10 bg-black/50 hover:bg-black/70 backdrop-blur text-white rounded-full flex items-center justify-center transition-all shadow-sm">
+                    {% if recipe.image_filename %}
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                        </path>
+                    </svg>
+                    {% else %}
+                    <span class="text-lg">📸</span>
+                    {% endif %}
+                </button>
+            </form>
+        </div>
+
+        <!-- Generate Prompt Badge (if no image) -->
+        {% if not recipe.image_filename %}
+        <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div class="bg-white/80 backdrop-blur px-6 py-3 rounded-full text-sm font-bold text-slate-600 shadow-lg pointer-events-auto cursor-pointer group-hover:scale-105 transition-transform"
+                onclick="document.getElementById('photoForm').submit()">
+                ✨ Generate Recipe Photo
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Recipe Header Info -->
+    <div class="flex flex-col items-center text-center max-w-4xl mx-auto mb-16">
+        <div class="flex flex-wrap gap-2 mb-6 justify-center">
+            {{ badge.difficulty_pill(recipe.difficulty) }}
+            {{ badge.tag_pill(recipe.cuisine, 'orange') }}
+            {{ badge.tag_pill(recipe.diet, 'green') }}
+            {% if recipe.protein_type %}
+            {{ badge.tag_pill(recipe.protein_type, 'blue') }}
+            {% endif %}
+            {% for tag in recipe.meal_types_list %}
+            {{ badge.tag_pill(tag, 'purple') }}
+            {% endfor %}
+        </div>
+
+        <h1 class="font-serif text-5xl md:text-7xl font-bold text-slate-900 leading-tight mb-6">
+            {{ recipe.title }}
+        </h1>
+
+        <p class="text-xl text-slate-600 font-light leading-relaxed max-w-2xl">
+            A {{ recipe.difficulty|lower }} {{ recipe.cuisine }} dish perfect for the {{ recipe.diet }} diet.
+            Using fresh ingredients from your pantry, customized by our World Class AI Chef.
+        </p>
+    </div>
+
+    <!-- Core Content Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 border-t border-slate-200 pt-12">
+
+        <!-- Left Column: The Pantry (Visual Ingredients) -->
+        <div class="lg:col-span-4 space-y-12">
+            <div class="sticky top-24">
+                {{ type.section_header('The Pantry', 'Ingredients required for this dish.') }}
+
+                <div class="space-y-10">
+                    {% for component, items in ingredients_by_component.items() %}
+                    <div class="bg-slate-50 rounded-xl p-2 border border-slate-100">
+                        <h3 class="font-serif text-lg font-bold text-slate-900 mb-4 border-b border-slate-200 pb-2">
+                            {{ component }}
+                        </h3>
+
+                        <!-- Visual Ingredient Grid -->
+                        <div class="grid grid-cols-3 gap-2 place-items-stretch">
+                            {% for item in items %}
+                            {{ card.visual_ingredient(item.ingredient, size='xl') }}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div class="mt-8 pt-8 border-t border-slate-200">
+                    <h3 class="font-serif text-lg font-bold text-slate-900 mb-4">Recipe Details</h3>
+                    <dl class="space-y-4 text-sm">
+                        <div class="flex flex-col sm:flex-row sm:justify-between border-b border-slate-100 pb-2">
+                            <dt class="font-medium text-slate-500">Cuisine</dt>
+                            <dd class="text-slate-900 font-semibold">{{ recipe.cuisine }}</dd>
+                        </div>
+                        <div class="flex flex-col sm:flex-row sm:justify-between border-b border-slate-100 pb-2">
+                            <dt class="font-medium text-slate-500">Diet</dt>
+                            <dd class="text-slate-900 font-semibold">{{ recipe.diet|capitalize }}</dd>
+                        </div>
+                        <div class="flex flex-col sm:flex-row sm:justify-between border-b border-slate-100 pb-2">
+                            <dt class="font-medium text-slate-500">Difficulty</dt>
+                            <dd class="text-slate-900 font-semibold">{{ recipe.difficulty }}</dd>
+                        </div>
+                        {% if recipe.protein_type %}
+                        <div class="flex flex-col sm:flex-row sm:justify-between border-b border-slate-100 pb-2">
+                            <dt class="font-medium text-slate-500">Protein</dt>
+                            <dd class="text-slate-900 font-semibold">
+                                <span class="text-slate-500 font-normal">{{ recipe.protein_type|get_protein_category
+                                    }}</span> • {{ recipe.protein_type }}
+                            </dd>
+                        </div>
+                        {% endif %}
+                        {% if recipe.meal_types_list %}
+                        <div class="flex flex-col sm:flex-row sm:justify-between border-b border-slate-100 pb-2">
+                            <dt class="font-medium text-slate-500">Meal Types</dt>
+                            <dd class="text-slate-900 font-semibold text-right">
+                                {{ recipe.meal_types_list|join(', ') }}
+                            </dd>
+                        </div>
+                        {% endif %}
+                    </dl>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: The Method (Instructions) -->
+        <div class="lg:col-span-8">
+            {{ type.section_header('The Method', 'Step-by-step instructions from the chef.') }}
+
+            <div class="space-y-12">
+                {% for phase, steps in steps_by_phase.items() %}
+                {% if steps %}
+                <div class="relative pl-8 border-l-2 border-slate-100">
+                    <span class="absolute -left-[9px] top-0 h-4 w-4 rounded-full border-2 border-white 
+                            {% if phase == 'Prep' %}bg-blue-400
+                            {% elif phase == 'Cook' %}bg-orange-500
+                            {% else %}bg-green-500{% endif %}">
+                    </span>
+
+                    <h3 class="text-sm font-bold uppercase tracking-widest text-slate-400 mb-6 
+                            {% if phase == 'Prep' %}text-blue-500
+                            {% elif phase == 'Cook' %}text-orange-600
+                            {% else %}text-green-600{% endif %}">
+                        {{ phase }} Phase
+                    </h3>
+
+                    <div class="space-y-8">
+                        {% for step in steps %}
+                        <div class="group flex gap-6">
+                            <span
+                                class="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-slate-500 font-serif font-bold group-hover:bg-slate-900 group-hover:text-white transition-colors duration-300">
+                                {{ step.step_number }}
+                            </span>
+                            <p class="text-xl text-slate-800 leading-relaxed font-light">
+                                {{ step.text }}
+                            </p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+
+            <!-- Chef's Note / Footer for Recipe -->
+            <div class="mt-16 p-8 bg-orange-50 rounded-2xl border border-orange-100 flex gap-4 items-start">
+                <span class="text-4xl">👨‍🍳</span>
+                <div>
+                    <h4 class="font-serif text-lg font-bold text-orange-900">Chef's Note</h4>
+                    <p class="text-orange-800/80 mt-1">
+                        Remember, cooking is an art. Feel free to adjust seasoning to your taste.
+                        Enjoy your meal!
+                    </p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-50 antialiased">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}The AI Kitchen{% endblock %}</title>
+
+    <!-- Typography: Playfair Display (Serif) & Inter (Sans) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap"
+        rel="stylesheet">
+
+    <!-- Tailwind CSS (v3 CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Design System Configuration -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        serif: ['Playfair Display', 'serif'],
+                    },
+                    colors: {
+                        slate: {
+                            50: '#f8fafc',
+                            100: '#f1f5f9',
+                            800: '#1e293b',
+                            900: '#0f172a',
+                        },
+                        orange: {
+                            50: '#fff7ed',
+                            100: '#ffedd5',
+                            600: '#ea580c',  /* Primary Action / Heat */
+                            800: '#9a3412',
+                        },
+                        green: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            600: '#16a34a',  /* Freshness / Ingredients */
+                            800: '#166534',
+                        },
+                        blue: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            600: '#2563eb',  /* Information / Resources */
+                            800: '#1e40af',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .hide-scrollbar::-webkit-scrollbar {
+                display: none;
+            }
+            .hide-scrollbar {
+                -ms-overflow-style: none;
+                scrollbar-width: none;
+            }
+        }
+    </style>
+</head>
+
+<body class="flex min-h-full flex-col text-slate-900">
+
+    <!-- Navigation -->
+    <header class="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <nav class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <!-- Logo -->
+            <a href="/" class="flex items-center gap-2 group">
+                <span class="text-2xl pt-1">🍳</span>
+                <span class="font-serif text-xl font-bold tracking-tight group-hover:text-orange-600 transition-colors">
+                    The AI Kitchen
+                </span>
+            </a>
+
+            <!-- Links -->
+            <div class="flex gap-6 text-sm font-medium text-slate-600">
+                <a href="/" class="hover:text-orange-600 transition-colors">Home</a>
+                <a href="/ingredients" class="hover:text-orange-600 transition-colors">Pantry</a>
+                <a href="/recipes" class="hover:text-orange-600 transition-colors">Recipes</a>
+                <a href="/chefs" class="hover:text-orange-600 transition-colors">Chefs</a>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow">
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+            {% for category, message in messages %}
+            <div
+                class="rounded-lg p-4 mb-4 text-sm font-medium {% if category == 'error' %}bg-red-50 text-red-800 border-red-200{% else %}bg-green-50 text-green-800 border-green-200{% endif %} border">
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-50 border-t border-slate-200 mt-auto">
+        <div class="max-w-screen-2xl mx-auto py-8 px-4 text-center text-slate-500 text-sm">
+            <p class="font-serif italic">"Maximum flavor with minimum complexity."</p>
+            <p class="mt-2 text-xs">Powered by Gemini AI & Flask</p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    {% block scripts %}{% endblock %}
+</body>
+
+</html>

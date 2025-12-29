@@ -1,0 +1,11 @@
+{
+    "diets": [
+        "keto",
+        "vegan",
+        "omnivore",
+        "vegetarian",
+        "paleo",
+        "gluten-free",
+        "pescatarian"
+    ]
+}

@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% import "components/typography.html" as type %}
+{% import "components/cards.html" as card %}
+
+{% block content %}
+<div class="relative overflow-hidden bg-slate-900 py-24 sm:py-32">
+    <!-- Abstract Background -->
+    <div
+        class="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1556910103-1c02745a30bf?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80')] bg-cover bg-center opacity-10 mix-blend-overlay">
+    </div>
+    <div class="absolute inset-0 bg-gradient-to-b from-slate-900/50 via-slate-900/80 to-slate-900"></div>
+
+    <div class="relative mx-auto max-w-2xl px-6 lg:max-w-7xl lg:px-8 text-center">
+        <!-- Badge -->
+        <div class="mb-8 flex justify-center">
+            <span
+                class="inline-flex items-center gap-x-2 rounded-full bg-slate-800 px-4 py-1.5 text-sm font-medium text-orange-400 ring-1 ring-inset ring-orange-400/20">
+                <span class="relative flex h-2 w-2">
+                    <span
+                        class="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
+                </span>
+                AI Chef Online • 100% Pantry Coverage
+            </span>
+        </div>
+
+        <!-- Headline -->
+        <h1 class="font-serif text-4xl font-bold tracking-tight text-white sm:text-6xl mb-6">
+            What are we cooking today?
+        </h1>
+        <p class="text-lg leading-8 text-slate-300 mb-10 max-w-xl mx-auto">
+            You have <b>609</b> ingredients ready in your pantry.
+            Just tell me what you're craving, and I'll handle the rest.
+        </p>
+
+        <!-- Chef Selector -->
+        <div class="mb-6 flex justify-center gap-4">
+            {% for chef in chefs %}
+            <div onclick="selectChef('{{ chef.id }}')" id="chef-{{ chef.id }}"
+                class="cursor-pointer group relative flex items-center gap-3 rounded-xl border border-slate-700 bg-slate-800/50 px-4 py-3 hover:bg-slate-800 hover:border-orange-500 transition-all duration-300 {% if loop.first %}ring-2 ring-orange-500 bg-slate-800{% endif %}">
+                <div class="h-10 w-10 rounded-full bg-slate-700 flex items-center justify-center text-xl">
+                    {% if chef.id == 'gourmet' %}👨‍🍳{% else %}🚀{% endif %}
+                </div>
+                <div class="text-left">
+                    <p class="text-sm font-bold text-white group-hover:text-orange-400 transition-colors">{{ chef.name
+                        }}</p>
+                    <p class="text-[10px] text-slate-400 uppercase tracking-wider">{{ chef.short_bio }}</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Dynamic AI Prompt Input -->
+        <form action="/" method="POST" class="max-w-xl mx-auto relative group">
+            <input type="hidden" name="chef_id" id="chefInput" value="gourmet">
+
+            <div
+                class="absolute -inset-1 bg-gradient-to-r from-orange-600 to-amber-600 rounded-lg blur opacity-25 group-hover:opacity-100 transition duration-1000 group-hover:duration-200">
+            </div>
+            <div class="relative flex bg-white rounded-lg p-1 shadow-2xl">
+                <input type="text" name="query" placeholder="e.g. 'Spicy pasta carbonara with bacon'..."
+                    class="block w-full rounded-md border-0 py-4 pl-6 pr-4 text-slate-900 ring-0 placeholder:text-slate-400 focus:ring-0 sm:text-lg sm:leading-6 focus:outline-none"
+                    autofocus required>
+                <button type="submit"
+                    class="flex-none rounded-md bg-slate-900 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-orange-600 transition-colors duration-200">
+                    Create
+                </button>
+            </div>
+            <!-- Quick Suggestions -->
+            <div class="mt-4 flex flex-wrap justify-center gap-2 text-xs text-slate-400">
+                <span>Try:</span>
+                <button type="button" onclick="setInput('Classic French Omelette')"
+                    class="hover:text-orange-400 underline decoration-slate-600 underline-offset-2">French
+                    Omelette</button>
+                <button type="button" onclick="setInput('Spaghetti Carbonara')"
+                    class="hover:text-orange-400 underline decoration-slate-600 underline-offset-2">Carbonara</button>
+                <button type="button" onclick="setInput('Thai Green Curry')"
+                    class="hover:text-orange-400 underline decoration-slate-600 underline-offset-2">Thai Curry</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Recent Creations Grid -->
+<div class="bg-slate-50 py-24 border-t border-slate-200">
+    <div class="mx-auto max-w-7xl px-6 lg:px-8">
+        <div class="flex items-center justify-center mb-16">
+            {{ type.section_header('Recent Creations', 'Dishes you have generated recently.') }}
+        </div>
+
+        {% if recipes %}
+        <div class="grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 xl:gap-x-8">
+            {% for recipe in recipes %}
+            {{ card.recipe_preview_card(recipe, recipe.id) }}
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-12">
+            <p class="text-slate-500 italic">No recipes yet. Start cooking above!</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function setInput(text) {
+        const input = document.querySelector('input[name="query"]');
+        input.value = text;
+        input.focus();
+    }
+
+    function selectChef(id) {
+        // Update Hidden Input
+        document.getElementById('chefInput').value = id;
+
+        // Update UI
+        // Reset all
+        document.querySelectorAll('[id^="chef-"]').forEach(el => {
+            el.classList.remove('ring-2', 'ring-orange-500', 'bg-slate-800');
+            el.classList.add('bg-slate-800/50');
+        });
+
+        // Highlight active
+        const active = document.getElementById('chef-' + id);
+        active.classList.remove('bg-slate-800/50');
+        active.classList.add('ring-2', 'ring-orange-500', 'bg-slate-800');
+    }
+
+    // Check URL params for pre-selection (e.g. coming from /chefs page)
+    const urlParams = new URLSearchParams(window.location.search);
+    const chefParam = urlParams.get('chef');
+    if (chefParam) {
+        selectChef(chefParam);
+    }
+</script>
+{% endblock %}
