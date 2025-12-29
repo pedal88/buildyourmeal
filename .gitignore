@@ -1,6 +1,7 @@
 # Secrets
 .env
 .env.local
+credentials.json
 
 # Database
 instance/
