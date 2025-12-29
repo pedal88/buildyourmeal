@@ -2,6 +2,7 @@ import os
 import uuid
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from database.models import db, Ingredient, Recipe, Instruction, RecipeIngredient
+from sqlalchemy import or_
 from services.pantry_service import get_slim_pantry_context
 from ai_engine import generate_recipe_ai, get_pantry_id, chefs_data
 from services.photographer_service import generate_visual_prompt, generate_actual_image, load_photographer_config
@@ -65,6 +66,14 @@ def get_protein_category(protein_name):
         if protein_name in category['examples']:
             return category['category']
     return "Other"
+@app.context_processor
+def utility_processor():
+    def update_query_params(**kwargs):
+        args = request.args.copy()
+        for key, value in kwargs.items():
+            args[key] = value
+        return url_for(request.endpoint, **args)
+    return dict(update_query_params=update_query_params)
 
 db.init_app(app)
 
@@ -248,8 +257,203 @@ def save_chef_prompt():
 
 @app.route('/recipes')
 def recipes_list():
-    recipes = db.session.execute(db.select(Recipe).order_by(Recipe.id.desc())).scalars().all()
-    return render_template('recipes_list.html', recipes=recipes)
+    # 1. Load Filter Data Options
+    data_dir = os.path.join(app.root_path, 'data')
+    
+    # Helper to load safely
+    def load_json_option(filename, key):
+        try:
+            with open(os.path.join(data_dir, filename), 'r') as f:
+                return json.load(f).get(key, [])
+        except:
+            return []
+
+    cuisine_options = load_json_option('cuisines.json', 'cuisines')
+    diet_options = load_json_option('diets_tag.json', 'diets')
+    difficulty_options = load_json_option('difficulty_tag.json', 'difficulty')
+    
+    # Protein Types (List of Dicts -> List of Strings)
+    pt_data = load_json_option('protein_types.json', 'protein_types')
+    protein_options = []
+    for p in pt_data:
+        if 'examples' in p:
+            protein_options.extend(p['examples'])
+    protein_options = sorted(list(set(protein_options)))
+    
+    # Meal Types (Dict of Lists -> Flattened List)
+    mt_data = load_json_option('meal_types.json', 'meal_classification')
+    meal_type_options = []
+    if isinstance(mt_data, dict):
+        for category_list in mt_data.values():
+            if isinstance(category_list, list):
+                meal_type_options.extend(category_list)
+    meal_type_options = sorted(list(set(meal_type_options)))
+
+    # 2. Handle Query Params (multi-select)
+    # Default to ALL options if not specified (First load behavior)
+    selected_cuisines = request.args.getlist('cuisine')
+    if not selected_cuisines and 'cuisine' not in request.args:
+        selected_cuisines = cuisine_options
+        
+    selected_diets = request.args.getlist('diet')
+    if not selected_diets and 'diet' not in request.args:
+        selected_diets = diet_options
+
+    selected_meal_types = request.args.getlist('meal_type')
+    if not selected_meal_types and 'meal_type' not in request.args:
+        selected_meal_types = meal_type_options
+    
+    selected_difficulties = request.args.getlist('difficulty')
+    selected_proteins = request.args.getlist('protein_type')
+
+    # 3. Build Filtered Query
+    stmt = db.select(Recipe).order_by(Recipe.id.desc())
+
+    if selected_cuisines:
+        stmt = stmt.where(Recipe.cuisine.in_(selected_cuisines))
+    
+    if selected_diets:
+        stmt = stmt.where(Recipe.diet.in_(selected_diets))
+
+    if selected_difficulties:
+        stmt = stmt.where(Recipe.difficulty.in_(selected_difficulties))
+
+    if selected_proteins:
+        # Filter by INGREDIENTS that match the selected protein names
+        # We join to RecipeIngredient -> Ingredient and check for partial matches
+        # or exact matches to the protein examples.
+        # Since 'Beef' might match 'Ground Beef', ILIKE is good.
+        clauses = []
+        for p in selected_proteins:
+            clauses.append(Recipe.ingredients.any(
+                RecipeIngredient.ingredient.has(Ingredient.name.ilike(f'%{p}%'))
+            ))
+        if clauses:
+             stmt = stmt.where(or_(*clauses))
+
+    if selected_meal_types:
+        # JSON list contains check. We want recipes that match ANY of the selected types.
+        clauses = [Recipe.meal_types.like(f'%"{m}"%') for m in selected_meal_types]
+        if clauses:
+            stmt = stmt.where(or_(*clauses))
+
+    recipes = db.session.execute(stmt).scalars().all()
+
+    return render_template('recipes_list.html', 
+                         recipes=recipes,
+                         cuisine_options=sorted(cuisine_options),
+                         diet_options=sorted(diet_options),
+                         difficulty_options=difficulty_options,
+                         protein_options=sorted(protein_options),
+                         meal_type_options=meal_type_options,
+                         # Selected State
+                         selected_cuisines=selected_cuisines,
+                         selected_diets=selected_diets,
+                         selected_meal_types=selected_meal_types,
+                         selected_difficulties=selected_difficulties,
+                         selected_proteins=selected_proteins)
+
+@app.route('/recipes_list')
+def recipes_table_view():
+    # 1. Load Filter Data Options
+    data_dir = os.path.join(app.root_path, 'data')
+    def load_json_option(filename, key):
+        try:
+            with open(os.path.join(data_dir, filename), 'r') as f:
+                return json.load(f).get(key, [])
+        except:
+            return []
+
+    cuisine_options = load_json_option('cuisines.json', 'cuisines')
+    diet_options = load_json_option('diets_tag.json', 'diets')
+    difficulty_options = load_json_option('difficulty_tag.json', 'difficulty')
+    
+    pt_data = load_json_option('protein_types.json', 'protein_types')
+    protein_options = []
+    for p in pt_data:
+        if 'examples' in p:
+            protein_options.extend(p['examples'])
+    protein_options = sorted(list(set(protein_options)))
+    
+    mt_data = load_json_option('meal_types.json', 'meal_classification')
+    meal_type_options = []
+    if isinstance(mt_data, dict):
+        for category_list in mt_data.values():
+            if isinstance(category_list, list):
+                meal_type_options.extend(category_list)
+    meal_type_options = sorted(list(set(meal_type_options)))
+
+    # 2. Handle Query Params
+    selected_cuisines = request.args.getlist('cuisine')
+    selected_diets = request.args.getlist('diet')
+    selected_meal_types = request.args.getlist('meal_type')
+    selected_difficulties = request.args.getlist('difficulty')
+    selected_proteins = request.args.getlist('protein_type')
+
+    # Sorting
+    sort_col = request.args.get('sort', 'id')
+    sort_dir = request.args.get('dir', 'desc')
+
+    # 3. Build Query
+    stmt = db.select(Recipe)
+
+    if selected_cuisines:
+        stmt = stmt.where(Recipe.cuisine.in_(selected_cuisines))
+    if selected_diets:
+        stmt = stmt.where(Recipe.diet.in_(selected_diets))
+    if selected_difficulties:
+        stmt = stmt.where(Recipe.difficulty.in_(selected_difficulties))
+    if selected_proteins:
+        clauses = []
+        for p in selected_proteins:
+            clauses.append(Recipe.ingredients.any(
+                RecipeIngredient.ingredient.has(Ingredient.name.ilike(f'%{p}%'))
+            ))
+        if clauses:
+             stmt = stmt.where(or_(*clauses))
+    if selected_meal_types:
+        clauses = [Recipe.meal_types.like(f'%"{m}"%') for m in selected_meal_types]
+        if clauses:
+            stmt = stmt.where(or_(*clauses))
+
+    # Apply Sorting
+    valid_cols = {
+        'id': Recipe.id,
+        'title': Recipe.title,
+        'cuisine': Recipe.cuisine,
+        'diet': Recipe.diet,
+        'difficulty': Recipe.difficulty,
+        'protein_type': Recipe.protein_type,
+        'total_calories': Recipe.total_calories,
+        'total_protein': Recipe.total_protein,
+        'total_carbs': Recipe.total_carbs,
+        'total_fat': Recipe.total_fat,
+        'total_fiber': Recipe.total_fiber,
+        'total_sugar': Recipe.total_sugar
+    }
+    
+    sort_attr = valid_cols.get(sort_col, Recipe.id)
+    if sort_dir == 'asc':
+        stmt = stmt.order_by(sort_attr.asc())
+    else:
+        stmt = stmt.order_by(sort_attr.desc())
+
+    recipes = db.session.execute(stmt).scalars().all()
+
+    return render_template('recipes_table.html', 
+                         recipes=recipes,
+                         cuisine_options=sorted(cuisine_options),
+                         diet_options=sorted(diet_options),
+                         difficulty_options=difficulty_options,
+                         protein_options=sorted(protein_options),
+                         meal_type_options=meal_type_options,
+                         selected_cuisines=selected_cuisines,
+                         selected_diets=selected_diets,
+                         selected_difficulties=selected_difficulties,
+                         selected_proteins=selected_proteins,
+                         selected_meal_types=selected_meal_types,
+                         current_sort=sort_col,
+                         current_dir=sort_dir)
 
 @app.route('/ingredients')
 def pantry_list():
@@ -361,8 +565,13 @@ def generate():
             )
             db.session.add(new_instr)
             
-        db.session.commit()
-        return redirect(url_for('recipe_detail', recipe_id=new_recipe.id))
+            db.session.commit()
+            
+            # 4. Calculate Nutrition
+            from services.nutrition_service import calculate_nutritional_totals
+            calculate_nutritional_totals(new_recipe.id)
+            
+            return redirect(url_for('recipe_detail', recipe_id=new_recipe.id))
         
     except ValueError as ve:
          flash(f"Validation Error: {str(ve)}", "error")
@@ -411,6 +620,97 @@ def ingredient_placeholder(food_id):
     else:
         return generate_ingredient_placeholder("Unknown")
 
+
+from services.social_media_service import SocialMediaExtractor
+from ai_engine import generate_recipe_ai, get_pantry_id, chefs_data, generate_recipe_from_video
+
+# ... existing code ...
+
+@app.route('/generate/video', methods=['POST'])
+def generate_from_video():
+    video_url = request.form.get('video_url')
+    
+    if not video_url:
+        flash("Please provide a video URL", "error")
+        return redirect(url_for('index'))
+        
+    try:
+        # 1. Download Video
+        extract_result = SocialMediaExtractor.download_video(video_url)
+        video_path = extract_result['video_path']
+        caption = extract_result['caption']
+        
+        try:
+            # 2. Analyze with AI
+            pantry_context = get_slim_pantry_context()
+            recipe_data = generate_recipe_from_video(video_path, caption, pantry_context)
+            
+            # 3. Save to DB (reusing logic from generate route - ideally refactor to service)
+            # Create Recipe Record
+            new_recipe = Recipe(
+                title=recipe_data.title,
+                cuisine=recipe_data.cuisine,
+                diet=recipe_data.diet,
+                difficulty=recipe_data.difficulty,
+                protein_type=recipe_data.protein_type,
+                meal_types=json.dumps(recipe_data.meal_types)
+            )
+            db.session.add(new_recipe)
+            db.session.flush()
+
+            # Create Ingredients
+            for group in recipe_data.ingredient_groups:
+                for ing in group.ingredients:
+                    food_id_str = get_pantry_id(ing.name)
+                    if not food_id_str:
+                         raise ValueError(f"System error: ID not found for validated ingredient {ing.name}")
+                    
+                    ingredient_record = db.session.execute(
+                        db.select(Ingredient).where(Ingredient.food_id == food_id_str)
+                    ).scalar_one_or_none()
+                    
+                    if not ingredient_record:
+                        raise ValueError(f"Database consistency error: Ingredient {ing.name} not found.")
+
+                    recipe_ing = RecipeIngredient(
+                        recipe_id=new_recipe.id,
+                        ingredient_id=ingredient_record.id,
+                        amount=ing.amount,
+                        unit=ing.unit,
+                        component=group.component
+                    )
+                    db.session.add(recipe_ing)
+            
+            # Create Instructions
+            for instr in recipe_data.instructions:
+                new_instr = Instruction(
+                    recipe_id=new_recipe.id,
+                    phase=instr.phase,
+                    step_number=instr.step_number,
+                    text=instr.text
+                )
+                db.session.add(new_instr)
+
+            db.session.commit()
+            
+            # 4. Calculate Nutrition
+            from services.nutrition_service import calculate_nutritional_totals
+            calculate_nutritional_totals(new_recipe.id)
+            
+            # Success!
+            return redirect(url_for('recipe_detail', recipe_id=new_recipe.id))
+            
+        finally:
+            # Always cleanup the video file
+            SocialMediaExtractor.cleanup(video_path)
+            
+    except Exception as e:
+        db.session.rollback()
+        # In case of error (and file still exists), cleanup provided it was downloaded
+        # video_path scope check? It's inside try, but if download fails it won't be set.
+        # If download succeeds but AI fails, we catch here.
+        flash(f"Error processing video: {str(e)}", "error")
+        return redirect(url_for('index'))
 
 if __name__ == '__main__':
     with app.app_context():

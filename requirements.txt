@@ -291,3 +291,4 @@ zeep==4.3.2
 zipp==3.23.0
 zopfli==0.2.3.post1
 zstandard==0.23.0
+yt-dlp

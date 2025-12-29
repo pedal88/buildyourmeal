@@ -9,6 +9,158 @@
     <div class="mx-auto max-w-7xl px-6 lg:px-8">
         {{ type.page_header('Cookbook', 'Every dish you have created with your AI Chef.') }}
 
+        <!-- Filter Form -->
+        <form method="GET" action="{{ url_for('recipes_list') }}" id="filterForm"
+            class="mt-8 mb-10 bg-gray-50 rounded-2xl p-6 border border-gray-100">
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5 items-end">
+
+                <!-- Custom Multi-Select Macro -->
+                {% macro multi_select_dropdown(id, label, options, selected_values) %}
+                <div class="relative group dropdown-container" id="container-{{ id }}">
+                    <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">{{ label
+                        }}</label>
+
+                    <!-- Trigger Button -->
+                    <button type="button" onclick="toggleDropdown('{{ id }}')"
+                        class="relative w-full cursor-default rounded-full bg-white py-2 pl-4 pr-10 text-left text-sm text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm sm:leading-6">
+                        <span class="block truncate" id="display-{{ id }}">
+                            {% if selected_values|length == options|length %}
+                            All {{ label }}s
+                            {% elif selected_values|length > 0 %}
+                            {{ selected_values|length }} Selected
+                            {% else %}
+                            Select {{ label }}
+                            {% endif %}
+                        </span>
+                        <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
+                            <svg class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor"
+                                aria-hidden="true">
+                                <path fill-rule="evenodd"
+                                    d="M10 3a1 1 0 01.707.293l3 3a1 1 0 01-1.414 1.414L10 5.414 7.707 7.707a1 1 0 01-1.414-1.414l3-3A1 1 0 0110 3zm-3.707 9.293a1 1 0 011.414 0L10 14.586l2.293-2.293a1 1 0 011.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
+                                    clip-rule="evenodd" />
+                            </svg>
+                        </span>
+                    </button>
+
+                    <!-- Dropdown Menu -->
+                    <div id="dropdown-{{ id }}"
+                        class="hidden absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+                        <!-- Controls -->
+                        <div
+                            class="sticky top-0 z-20 bg-gray-50 border-b border-gray-100 flex justify-between px-3 py-2 text-xs font-medium text-indigo-600 cursor-pointer">
+                            <span onclick="selectAll('{{ id }}')">Select All</span>
+                            <span onclick="selectNone('{{ id }}')"
+                                class="text-gray-500 hover:text-indigo-600">None</span>
+                        </div>
+
+                        <!-- Options -->
+                        <div class="py-1">
+                            {% for option in options %}
+                            <label class="relative flex cursor-pointer select-none py-2 pl-3 pr-9 hover:bg-gray-50">
+                                <input type="checkbox" name="{{ id }}" value="{{ option }}" {% if option in
+                                    selected_values %}checked{% endif %} class="peer sr-only"
+                                    onchange="updateDisplay('{{ id }}', '{{ label }}s', {{ options|length }})">
+
+                                <!-- Checkmark Icon (Visible when checked) -->
+                                <span
+                                    class="absolute inset-y-0 left-0 flex items-center pl-3 text-indigo-600 opacity-0 peer-checked:opacity-100 transition-opacity">
+                                    <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd"
+                                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                            clip-rule="evenodd" />
+                                    </svg>
+                                </span>
+
+                                <span
+                                    class="ml-6 block truncate font-normal text-gray-900 peer-checked:font-medium peer-checked:text-indigo-900">
+                                    {{ option|title }}
+                                </span>
+                            </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% endmacro %}
+
+                <!-- Render Inputs -->
+                {{ multi_select_dropdown('cuisine', 'Cuisine', cuisine_options, selected_cuisines) }}
+                {{ multi_select_dropdown('diet', 'Diet', diet_options, selected_diets) }}
+                {{ multi_select_dropdown('meal_type', 'Meal Type', meal_type_options, selected_meal_types) }}
+
+                <!-- Protein (Multi-Select) -->
+                {{ multi_select_dropdown('protein_type', 'Protein', protein_options, selected_proteins) }}
+
+                <!-- Difficulty (Multi-Select) -->
+                {{ multi_select_dropdown('difficulty', 'Difficulty', difficulty_options, selected_difficulties) }}
+            </div>
+
+            <!-- Actions -->
+            <div class="mt-6 flex justify-end gap-3 border-t border-gray-200 pt-4">
+                <a href="{{ url_for('recipes_list') }}"
+                    class="rounded-full bg-white px-5 py-2 text-sm font-semibold text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 transition-colors">Clear
+                    Filters</a>
+                <button type="submit"
+                    class="rounded-full bg-indigo-600 px-8 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-colors">Apply
+                    Filters</button>
+            </div>
+        </form>
+
+        <script>
+            function toggleDropdown(id) {
+                // Close others
+                document.querySelectorAll('[id^="dropdown-"]').forEach(el => {
+                    if (el.id !== `dropdown-${id}`) el.classList.add('hidden');
+                });
+                // Toggle current
+                const dropdown = document.getElementById(`dropdown-${id}`);
+                dropdown.classList.toggle('hidden');
+            }
+
+            function selectAll(id) {
+                const container = document.getElementById(`dropdown-${id}`);
+                const inputs = container.querySelectorAll('input[type="checkbox"]');
+                inputs.forEach(input => input.checked = true);
+
+                // Get human readable label part (naive but works with macro structure)
+                const label = id === 'meal_type' ? 'Meal Types' : id.charAt(0).toUpperCase() + id.slice(1) + 's';
+                updateDisplay(id, label, inputs.length);
+            }
+
+            function selectNone(id) {
+                const container = document.getElementById(`dropdown-${id}`);
+                const inputs = container.querySelectorAll('input[type="checkbox"]');
+                inputs.forEach(input => input.checked = false);
+
+                const label = id === 'meal_type' ? 'Meal Types' : id.charAt(0).toUpperCase() + id.slice(1) + 's';
+                updateDisplay(id, label, inputs.length);
+            }
+
+            function updateDisplay(id, labelName, totalOptions) {
+                const container = document.getElementById(`dropdown-${id}`);
+                const inputs = container.querySelectorAll('input[type="checkbox"]:checked');
+                const count = inputs.length;
+                const display = document.getElementById(`display-${id}`);
+
+                if (count === totalOptions) {
+                    display.innerText = `All ${labelName}`;
+                } else if (count > 0) {
+                    display.innerText = `${count} Selected`;
+                } else {
+                    display.innerText = `Select ${labelName}`; // Actually 0 selected
+                    // Optional: Visually show "None"
+                }
+            }
+
+            // Close on click outside
+            document.addEventListener('click', function (event) {
+                if (!event.target.closest('.dropdown-container')) {
+                    document.querySelectorAll('[id^="dropdown-"]').forEach(el => {
+                        el.classList.add('hidden');
+                    });
+                }
+            });
+        </script>
+
         <div class="grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 xl:gap-x-8 mt-12">
             {% for recipe in recipes %}
             {{ card.recipe_preview_card(recipe, recipe.id) }}

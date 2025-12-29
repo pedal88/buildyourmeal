@@ -26,6 +26,7 @@ static/temp/*
 !static/temp/.gitkeep
 
 temp_ingredients_for_Mapping
+temp_video/
 data/pantry_*.json
 
 # IDEs

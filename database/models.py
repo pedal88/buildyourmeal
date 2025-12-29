@@ -54,6 +54,14 @@ class Recipe(db.Model):
     meal_types: Mapped[str] = mapped_column(String, default='[]') # JSON list of tags
     image_filename: Mapped[str] = mapped_column(String, nullable=True)
 
+    # Nutrition Totals (Calculated)
+    total_calories: Mapped[float] = mapped_column(Float, nullable=True)
+    total_protein: Mapped[float] = mapped_column(Float, nullable=True)
+    total_carbs: Mapped[float] = mapped_column(Float, nullable=True)
+    total_fat: Mapped[float] = mapped_column(Float, nullable=True)
+    total_fiber: Mapped[float] = mapped_column(Float, nullable=True)
+    total_sugar: Mapped[float] = mapped_column(Float, nullable=True)
+
     instructions: Mapped[list["Instruction"]] = relationship(back_populates="recipe", cascade="all, delete-orphan")
     ingredients: Mapped[list["RecipeIngredient"]] = relationship(back_populates="recipe", cascade="all, delete-orphan")
 

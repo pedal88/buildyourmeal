@@ -1,0 +1,160 @@
+[
+    {
+        "Metadata (Fields)": {
+            "id": 1,
+            "title": "Conceptual Roman Carbonara (Zero Ingredients Available)",
+            "cuisine": "Italian",
+            "diet": "omnivore",
+            "difficulty": "Elevated",
+            "protein_type": null,
+            "meal_types_raw": "[]",
+            "meal_types_parsed": [],
+            "image_filename": "recipe_1_44ee9544.png"
+        },
+        "Related Data": {
+            "Instructions": [
+                {
+                    "step": 1,
+                    "phase": "Prep",
+                    "text": "Conceptually, gather 4 oz of Guanciale (or Pancetta), slice it into small lardons, and grate 2 oz of Pecorino Romano cheese. Separate 3 egg yolks and combine them with 1 whole egg, mixing thoroughly with the grated cheese and freshly ground black pepper to form the emulsion base."
+                },
+                {
+                    "step": 2,
+                    "phase": "Cook",
+                    "text": "In a cold pan, conceptually render the Guanciale over medium-low heat until crisp and translucent, ensuring the fat is melted but the pieces are not burned. Remove the pan from heat, allowing it to cool slightly while retaining the rendered fat."
+                },
+                {
+                    "step": 3,
+                    "phase": "Cook",
+                    "text": "Cook 6 oz of high-quality spaghetti or rigatoni in salted water until very al dente (about 2 minutes less than package directions). Reserve at least 1 cup of the starchy pasta water."
+                },
+                {
+                    "step": 4,
+                    "phase": "Cook",
+                    "text": "Drain the pasta and immediately add it to the pan with the rendered Guanciale fat (off the heat). Toss rapidly to coat. Quickly add the egg/cheese mixture and 2-3 tablespoons of the reserved hot pasta water. Stir vigorously and continuously, allowing the residual heat of the pasta and pan (but not direct stove heat) to emulsify the sauce into a creamy, smooth consistency. If the sauce thickens too much, add small amounts of pasta water; if too thin, add more Pecorino."
+                },
+                {
+                    "step": 5,
+                    "phase": "Cook",
+                    "text": "Serve immediately in warmed bowls, garnishing with the crispy Guanciale pieces and a final grind of black pepper."
+                }
+            ],
+            "Ingredients": []
+        }
+    },
+    {
+        "Metadata (Fields)": {
+            "id": 2,
+            "title": "Spaghetti Carbonara Classica (Chef's Adaptation)",
+            "cuisine": "Italian",
+            "diet": "omnivore",
+            "difficulty": "Elevated",
+            "protein_type": null,
+            "meal_types_raw": "[]",
+            "meal_types_parsed": [],
+            "image_filename": null
+        },
+        "Related Data": {
+            "Instructions": [
+                {
+                    "step": 1,
+                    "phase": "Prep",
+                    "text": "Dice the pork shoulder (choosing the fattiest sections if possible) into small cubes (approximately 1 cm thick). Grate the parmesan cheese finely."
+                },
+                {
+                    "step": 2,
+                    "phase": "Prep",
+                    "text": "In a wide skillet or pan (large enough to hold the finished pasta), place the diced pork. Cook over low to moderate heat until the fat is fully rendered and the pork pieces are deeply golden brown and crispy. This step replaces traditional Guanciale rendering."
+                },
+                {
+                    "step": 3,
+                    "phase": "Prep",
+                    "text": "While the pork cooks, prepare the egg mixture. In a medium bowl, combine the whole eggs and egg yolks. Crack the black peppercorns coarsely and grind them into the eggs generously. Whisk briefly, then gradually whisk in the grated parmesan until a thick paste forms. Set aside."
+                },
+                {
+                    "step": 4,
+                    "phase": "Cook",
+                    "text": "Bring a large pot of water to a rolling boil and add the kosher salt. Cook the spaghetti until it is very al dente\u2014about 2 minutes less than the package instructions. Reserve at least 300 ml of the starchy pasta cooking water before draining."
+                },
+                {
+                    "step": 5,
+                    "phase": "Cook",
+                    "text": "Once the pork is crisp, remove the crispy pieces (the ciccioli) from the skillet and set them aside. Leave approximately 30 ml of rendered fat in the pan (discard or save the excess fat)."
+                },
+                {
+                    "step": 6,
+                    "phase": "Cook",
+                    "text": "Immediately transfer the drained, hot spaghetti directly into the skillet with the reserved fat. Toss quickly to coat. **CRITICAL STEP:** Remove the skillet completely from the heat source."
+                },
+                {
+                    "step": 7,
+                    "phase": "Cook",
+                    "text": "Add a small ladle (about 60 ml) of the hot reserved pasta water to the pan. Begin slowly adding the egg and cheese mixture, stirring and tossing the pasta constantly and vigorously. The residual heat of the pasta and pan, combined with the hot starchy water, will temper the egg mixture, creating a rich, creamy emulsion (crema) without scrambling the eggs. Add additional pasta water, a splash at a time, until the desired creamy consistency is achieved."
+                },
+                {
+                    "step": 8,
+                    "phase": "Serve",
+                    "text": "Mix about three-quarters of the reserved crispy pork pieces (ciccioli) back into the pasta. Serve immediately in warm bowls, topping each serving with the remaining crispy pork, freshly ground black peppercorns, and a final grating of parmesan."
+                }
+            ],
+            "Ingredients": [
+                {
+                    "name": "spaghetti",
+                    "amount": 400.0,
+                    "unit": "g",
+                    "component": "Main Dish",
+                    "ingredient_category": "cereal grains and pasta",
+                    "ingredient_id": "000322"
+                },
+                {
+                    "name": "pork shoulder",
+                    "amount": 200.0,
+                    "unit": "g",
+                    "component": "Main Dish",
+                    "ingredient_category": "meat",
+                    "ingredient_id": "000032"
+                },
+                {
+                    "name": "kosher salt",
+                    "amount": 30.0,
+                    "unit": "g",
+                    "component": "Main Dish",
+                    "ingredient_category": "spices and herbs",
+                    "ingredient_id": "000293"
+                },
+                {
+                    "name": "parmesan",
+                    "amount": 150.0,
+                    "unit": "g",
+                    "component": "Carbonara Emulsion (Crema)",
+                    "ingredient_category": "dairy and egg",
+                    "ingredient_id": "000196"
+                },
+                {
+                    "name": "whole eggs",
+                    "amount": 200.0,
+                    "unit": "g",
+                    "component": "Carbonara Emulsion (Crema)",
+                    "ingredient_category": "dairy and egg",
+                    "ingredient_id": "000225"
+                },
+                {
+                    "name": "egg yolks",
+                    "amount": 60.0,
+                    "unit": "g",
+                    "component": "Carbonara Emulsion (Crema)",
+                    "ingredient_category": "dairy and egg",
+                    "ingredient_id": "000227"
+                },
+                {
+                    "name": "black peppercorns",
+                    "amount": 5.0,
+                    "unit": "g",
+                    "component": "Carbonara Emulsion (Crema)",
+                    "ingredient_category": "spices and herbs",
+                    "ingredient_id": "000264"
+                }
+            ]
+        }
+    }
+]

@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+
+{% block title %}Recipes Table - The AI Kitchen{% endblock %}
+
+{% block content %}
+<div class="bg-white py-8 max-w-[95%] mx-auto">
+    <div class="px-4 sm:px-6 lg:px-8">
+        <div class="sm:flex sm:items-center">
+            <div class="sm:flex-auto">
+                <h1 class="text-base font-semibold leading-6 text-gray-900">Recipes Database</h1>
+                <p class="mt-2 text-sm text-gray-700">A detailed view of all recipes including nutritional data.</p>
+            </div>
+            <div class="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
+                <a href="{{ url_for('recipes_list') }}"
+                    class="block rounded-md bg-indigo-600 px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Back
+                    to Grid</a>
+            </div>
+        </div>
+
+        <div class="mt-8 flow-root">
+            <div class="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+                <div class="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
+                    <!-- MAIN TABLE -->
+                    <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
+                        <table class="min-w-full divide-y divide-gray-300">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <!-- Define Columns Helper Macro -->
+                                    {% macro header_cell(id, label, options=None, selected=None) %}
+                                    <th scope="col"
+                                        class="py-3.5 pl-4 pr-3 text-left text-xs font-semibold text-gray-900 sm:pl-6 group relative whitespace-nowrap">
+                                        <div class="flex items-center gap-2">
+                                            <!-- Sort Link -->
+                                            <a href="{{ update_query_params(sort=id, dir='asc' if current_sort != id or current_dir == 'desc' else 'desc') }}"
+                                                class="flex items-center cursor-pointer hover:text-indigo-600">
+                                                {{ label }}
+                                                {% if current_sort == id %}
+                                                {% if current_dir == 'asc' %}
+                                                <span class="ml-1">▲</span>
+                                                {% else %}
+                                                <span class="ml-1">▼</span>
+                                                {% endif %}
+                                                {% else %}
+                                                <span
+                                                    class="ml-1 text-gray-400 opacity-0 group-hover:opacity-100">↕</span>
+                                                {% endif %}
+                                            </a>
+
+                                            <!-- Filter Menu Trigger (Only if options provided) -->
+                                            {% if options %}
+                                            <div class="relative inline-block text-left filter-dropdown-container">
+                                                <button type="button" onclick="toggleFilterMenu('menu-{{ id }}')"
+                                                    class="text-gray-400 hover:text-indigo-600 focus:outline-none">
+                                                    <svg class="h-4 w-4 {% if selected and selected|length > 0 %}text-indigo-600{% endif %}"
+                                                        fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                                                        stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 00-.659-1.591L3.659 7.409A2.25 2.25 0 013 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z" />
+                                                    </svg>
+                                                </button>
+
+                                                <!-- Dropdown Menu -->
+                                                <div id="menu-{{ id }}"
+                                                    class="hidden absolute left-0 z-20 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                                                    <div
+                                                        class="p-2 border-b border-gray-100 flex justify-between text-xs font-semibold text-indigo-600 bg-gray-50">
+                                                        <span class="cursor-pointer hover:underline"
+                                                            onclick="selectAllFilters('{{ id }}')">All</span>
+                                                        <span class="cursor-pointer hover:underline"
+                                                            onclick="clearFilters('{{ id }}')">None</span>
+                                                    </div>
+                                                    <form method="GET" action="{{ url_for('recipes_table_view') }}"
+                                                        class="max-h-60 overflow-y-auto p-1">
+                                                        <!-- Preserve other params -->
+                                                        <!-- We use JS to submit the main form usually, but here we can just do simple checkbox form for THIS column, but we lose others. 
+                                                             Better approach: Allow checking boxes then a generic 'Apply' button in the macro? 
+                                                             To keep it simple per requirements: "Filtering selected values".
+                                                             I will make these checkboxes submit on change or have an apply button. 
+                                                             Problem: multiple forms. 
+                                                             Solution: One Global Form for the table? No, Sort links are links.
+                                                             Let's make a JS helper that collects ALL filter states from page and reloads.
+                                                        -->
+                                                        {% for opt in options %}
+                                                        <div class="flex items-center px-4 py-2 hover:bg-gray-50">
+                                                            <input type="checkbox" data-col="{{ id }}" value="{{ opt }}"
+                                                                {% if selected and opt in selected %}checked{% endif %}
+                                                                class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600">
+                                                            <label
+                                                                class="ml-3 block text-sm text-gray-700 whitespace-normal">{{
+                                                                opt }}</label>
+                                                        </div>
+                                                        {% endfor %}
+                                                    </form>
+                                                </div>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </th>
+                                    {% endmacro %}
+
+                                    <th scope="col"
+                                        class="py-3.5 pl-4 pr-3 text-left text-xs font-semibold text-gray-900 sm:pl-6">
+                                        Image</th>
+                                    {{ header_cell('title', 'Name') }}
+                                    {{ header_cell('cuisine', 'Cuisine', cuisine_options, selected_cuisines) }}
+                                    {{ header_cell('diet', 'Diet', diet_options, selected_diets) }}
+                                    {{ header_cell('meal_type', 'Meal Type', meal_type_options, selected_meal_types) }}
+                                    {{ header_cell('protein_type', 'Protein', protein_options, selected_proteins) }}
+                                    {{ header_cell('difficulty', 'Difficulty', difficulty_options,
+                                    selected_difficulties) }}
+
+                                    <!-- Nutrition -->
+                                    {{ header_cell('total_calories', 'Kcal') }}
+                                    {{ header_cell('total_protein', 'Prot (g)') }}
+                                    {{ header_cell('total_carbs', 'Carbs (g)') }}
+                                    {{ header_cell('total_fat', 'Fat (g)') }}
+                                    {{ header_cell('total_fiber', 'Fiber (g)') }}
+                                    {{ header_cell('total_sugar', 'Sugar (g)') }}
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200 bg-white">
+                                {% for recipe in recipes %}
+                                <tr>
+                                    <!-- Image -->
+                                    <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
+                                        <div class="h-10 w-10 shrink-0">
+                                            {% if recipe.image_filename %}
+                                            <img class="h-10 w-10 rounded-full object-cover"
+                                                src="{{ url_for('static', filename='recipes/' + recipe.image_filename) }}"
+                                                alt="">
+                                            {% else %}
+                                            <div
+                                                class="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center text-xs">
+                                                ?</div>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <!-- Title -->
+                                    <td
+                                        class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 max-w-xs truncate">
+                                        <a href="{{ url_for('recipe_detail', recipe_id=recipe.id) }}"
+                                            class="hover:text-indigo-600">{{ recipe.title }}</a>
+                                    </td>
+                                    <!-- Categorical Data -->
+                                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{{ recipe.cuisine }}
+                                    </td>
+                                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 capitalize">{{
+                                        recipe.diet }}</td>
+                                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 max-w-[150px] truncate"
+                                        title="{{ recipe.meal_types_list|join(', ') }}">
+                                        {{ recipe.meal_types_list|join(', ') }}
+                                    </td>
+                                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{{ recipe.protein_type
+                                        or '-' }}</td>
+                                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                                        <span
+                                            class="inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium text-gray-600 ring-1 ring-inset ring-gray-500/10">{{
+                                            recipe.difficulty }}</span>
+                                    </td>
+
+                                    <!-- Nutrition Data -->
+                                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{{
+                                        recipe.total_calories|default('-', true) }}</td>
+                                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{{
+                                        recipe.total_protein|default('-', true) }}</td>
+                                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{{
+                                        recipe.total_carbs|default('-', true) }}</td>
+                                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{{
+                                        recipe.total_fat|default('-', true) }}</td>
+                                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{{
+                                        recipe.total_fiber|default('-', true) }}</td>
+                                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{{
+                                        recipe.total_sugar|default('-', true) }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Floating Apply Filters Button (Only visible if changes made? Or always visible?) -->
+<div id="filter-actions" class="fixed bottom-8 right-8 hidden z-50">
+    <button onclick="applyFilters()"
+        class="rounded-full bg-indigo-600 px-6 py-3 text-base font-semibold text-white shadow-xl hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-all flex items-center gap-2">
+        <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd"
+                d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z"
+                clip-rule="evenodd" />
+        </svg>
+        Apply Changes
+    </button>
+</div>
+
+<script>
+    // State of filters
+    let pendingFilters = {};
+
+    function toggleFilterMenu(menuId) {
+        // Hide others
+        document.querySelectorAll('[id^="menu-"]').forEach(el => {
+            if (el.id !== menuId) el.classList.add('hidden');
+        });
+        document.getElementById(menuId).classList.toggle('hidden');
+    }
+
+    // Capture Checkbox Changes
+    document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+        cb.addEventListener('change', function () {
+            document.getElementById('filter-actions').classList.remove('hidden');
+        });
+    });
+
+    function selectAllFilters(colId) {
+        const inputs = document.querySelectorAll(`input[data-col="${colId}"]`);
+        inputs.forEach(i => i.checked = true);
+        document.getElementById('filter-actions').classList.remove('hidden');
+    }
+
+    function clearFilters(colId) {
+        const inputs = document.querySelectorAll(`input[data-col="${colId}"]`);
+        inputs.forEach(i => i.checked = false);
+        document.getElementById('filter-actions').classList.remove('hidden');
+    }
+
+    function applyFilters() {
+        const urlParams = new URLSearchParams(window.location.search);
+
+        // Clear existing filter arrays from URL to rebuild them
+        ['cuisine', 'diet', 'meal_type', 'protein_type', 'difficulty'].forEach(k => urlParams.delete(k));
+
+        // Collect checked boxes
+        document.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
+            urlParams.append(cb.dataset.col, cb.value);
+        });
+
+        window.location.search = urlParams.toString();
+    }
+
+    // Close menus on outside click
+    document.addEventListener('click', function (event) {
+        if (!event.target.closest('.filter-dropdown-container')) {
+            document.querySelectorAll('[id^="menu-"]').forEach(el => {
+                el.classList.add('hidden');
+            });
+        }
+    });
+</script>
+{% endblock %}

@@ -255,3 +255,133 @@ def generate_recipe_ai(query: str, slim_context: List[dict] = None, chef_id: str
 
 def get_pantry_id(name: str):
     return pantry_map.get(name.lower())
+
+def generate_recipe_from_video(video_path: str, caption: str, slim_context: List[dict] = None, chef_id: str = "gourmet") -> RecipeSchema:
+    if not client:
+        raise Exception("Gemini API key not configured")
+        
+    print(f"🎬 Uploading video to Gemini: {video_path}")
+    
+    # 1. Upload File
+    try:
+        # Use simple upload (v1beta/genai library style)
+        # Note: 'genai.files' might need import or access via client?
+        # The new 'google.genai' library (v1.0+) has specific file handling.
+        # Based on user's prompt they reference `genai.upload_file`.
+        # Because we imported `from google import genai`, we might need to adjust.
+        # BUT: The user code uses `genai.Client`. The older `google.generativeai` has `upload_file`.
+        # The new `google.genai` SDK is a bit different.
+        # Let's check imports. Line 5: `from google import genai`.
+        # This is the NEW SDK 1.0+.
+        # In new SDK: client.files.upload(...)
+        
+        # However, checking earlier errors in this chat history (Step 1477), the user had `import google.generativeai as genai`.
+        # But `ai_engine.py` (Step 1882) shows `from google import genai`.
+        # This is an important distinction. 
+        # If using `google.genai` (new SDK):
+        file_ref = client.files.upload(file=video_path)
+    except Exception as e:
+        # Fallback if using older library or mixup
+        print(f"Upload failed: {e}")
+        raise ValueError(f"Failed to upload video to AI: {e}")
+
+    print(f"⏳ Waiting for video processing (File URI: {file_ref.uri})...")
+    
+    # 2. Wait for processing (Polling)
+    import time
+    while True:
+        # refresh file info
+        file_info = client.files.get(name=file_ref.name)
+        if file_info.state == "ACTIVE":
+            break
+        elif file_info.state == "FAILED":
+            raise ValueError("Video processing failed in Gemini Cloud.")
+        time.sleep(2)
+        print(".", end="", flush=True)
+    print(" Ready!")
+
+    # 3. Prepare Prompt
+    if slim_context:
+        set_pantry_memory(slim_context)
+        pantry_str = json.dumps(slim_context)
+    else:
+        pantry_str = "[]"
+        
+    selected_chef = chef_map.get(chef_id, chef_map["gourmet"])
+
+    prompt = f"""
+    VIDEO ANALYSIS REQUEST. 
+    Caption: "{caption}"
+
+    {selected_chef['system_prompt']}
+    
+    TASK: Watch this cooking video and extract the recipe. 
+    Indentify what is being cooked and how.
+    MATCH ingredients to my available pantry list where possible: 
+    {pantry_str}
+
+    COMPONENT ARCHITECTURE RULES:
+    1. DEFAULT TO SINGLE COMPONENT: Cohesive dishes (Pasta, Pizza, Burgers, Salads, Soups) must be ONE component.
+       - Valid: "Spaghetti Carbonara" (Everything included).
+    2. SPLIT ONLY FOR DISTINCT MODULES: "Steak" + "Fries".
+    3. NO "MICRO-COMPONENTS".
+
+    INSTRUCTION PHASING RULES:
+    - PREP: Preliminary tasks.
+    - COOK: Heat application or main assembly.
+    - SERVE: Presentation.
+
+    JSON RULES:
+    1. Valid Cuisines: {", ".join(cuisines_data)}
+    2. Valid Diets: {", ".join(diets_data)}
+    3. Valid Difficulties: {", ".join(difficulty_data)}
+    4. Valid Protein Types (Tier 2): {", ".join([p.title() for p in valid_proteins])}
+    5. Valid Meal Types: {", ".join(valid_meal_tags)}
+    6. Exact pantry names (n) required if matched.
+    
+    Return the output as a valid JSON object matching this schema:
+    {{
+        "title": "Clean, Simple Title",
+        "cuisine": "Valid Cuisine",
+        "diet": "Valid Diet",
+        "difficulty": "Valid Difficulty",
+        "protein_type": "Valid Specific Protein",
+        "meal_types": ["Tag 1", "Tag 2"],
+        "ingredient_groups": [
+            {{
+                "component": "Main",
+                "ingredients": [
+                    {{"name": "n name", "amount": 0.0, "unit": "u"}}
+                ]
+            }}
+        ],
+        "instructions": [
+            {{"phase": "Prep", "step_number": 1, "text": "Step description."}},
+            {{"phase": "Cook", "step_number": 2, "text": "Step description."}},
+            {{"phase": "Serve", "step_number": 3, "text": "Step description."}}
+        ]
+    }}
+    """
+    
+    # 4. Generate Content
+    try:
+        response = client.models.generate_content(
+            model='gemini-2.0-flash', # Vision optimized
+            contents=[file_ref, prompt]
+        )
+        
+        # 5. Cleanup Cloud File
+        print("🧹 Cleaning up cloud file...")
+        try:
+            client.files.delete(name=file_ref.name)
+        except:
+            pass # Non-critical
+
+        # 6. Parse
+        text = response.text.replace('```json', '').replace('```', '').strip()
+        data = json.loads(text)
+        return RecipeSchema(**data)
+        
+    except Exception as e:
+        raise ValueError(f"AI Generation failed: {e}")
+
