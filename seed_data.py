@@ -55,11 +55,27 @@ def load_pantry():
                 db.session.add(ing)
                 count += 1
             else:
-                # Update existing ingredient with image data if missing
-                if not existing.image_url and images.get('image_url'):
-                    existing.image_url = images.get('image_url')
-                    existing.image_prompt = images.get('image_prompt')
-                    updated += 1
+                # Update existing ingredient with latest data (Images + Nutrition)
+                
+                # Images (preserve existing if JSON is missing it, but overwrite if JSON has it? 
+                # Strategy: Only update if we have new data to offer)
+                if images.get('image_url'):
+                     existing.image_url = images.get('image_url')
+                if images.get('image_prompt'):
+                     existing.image_prompt = images.get('image_prompt')
+
+                # Nutrition - Always sync from JSON
+                existing.calories_per_100g = nutrition.get('calories_per_100g')
+                existing.kj_per_100g = nutrition.get('kj_per_100g')
+                existing.protein_per_100g = nutrition.get('proteins_per_100g')
+                existing.carbs_per_100g = nutrition.get('carbs_per_100g')
+                existing.fat_per_100g = nutrition.get('fat_per_100g')
+                existing.fat_saturated_per_100g = nutrition.get('fat_saturated_per_100g')
+                existing.sugar_per_100g = nutrition.get('sugar_per_100g')
+                existing.fiber_per_100g = nutrition.get('fiber_per_100g')
+                existing.sodium_mg_per_100g = nutrition.get('sodium_mg_per_100g')
+                
+                updated += 1
         
         db.session.commit()
         print(f"Pantry seeded successfully. Added {count} new ingredients, updated {updated} existing.")

@@ -1,0 +1,288 @@
+{% extends "base.html" %}
+{% import "components/typography.html" as type %}
+
+{% block title %}Pantry Management - The AI Kitchen{% endblock %}
+
+{% block content %}
+<div class="bg-white min-h-screen pb-24">
+    <!-- Header -->
+    <div class="bg-slate-50 border-b border-slate-200">
+        <div class="max-w-screen-2xl mx-auto px-4 py-8 text-center">
+            {{ type.page_header('Pantry Management', 'Manage your staple ingredients and preferences.') }}
+            <p class="mt-2 text-sm text-slate-500">Flag ingredients as "Basic" to tell the AI what you always have in
+                stock.</p>
+        </div>
+    </div>
+
+    <!-- Sticky Control Bar -->
+    <div
+        class="sticky top-16 z-30 bg-white/95 backdrop-blur border-b border-slate-200 shadow-sm transition-all duration-300">
+        <div class="max-w-screen-xl mx-auto px-4 py-3 flex flex-wrap gap-2 items-center justify-center md:justify-end">
+            <button onclick="applyFilter('all')"
+                class="px-3 py-1.5 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">
+                Show All
+            </button>
+            <button onclick="applyFilter('basic')"
+                class="px-3 py-1.5 text-sm font-medium text-green-700 bg-green-100 hover:bg-green-200 rounded-lg transition-colors">
+                Show Staples
+            </button>
+            <button onclick="applyFilter('non-basic')"
+                class="px-3 py-1.5 text-sm font-medium text-slate-500 bg-slate-50 border border-slate-200 hover:bg-slate-100 rounded-lg transition-colors">
+                Show Non-Staples
+            </button>
+            <div class="w-px h-6 bg-slate-300 mx-2"></div>
+            <button onclick="collapseAll()"
+                class="px-3 py-1.5 text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors">
+                Collapse All
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="max-w-screen-xl mx-auto px-4 py-8">
+
+        {% for category, items in grouped_ingredients.items() %}
+        {% set basic_count = items | selectattr("is_basic_ingredient", "equalto", true) | list | length %}
+        {% set extra_count = items | length - basic_count %}
+
+        <details
+            class="group mb-6 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden category-container"
+            open id="category-{{ loop.index }}">
+            <summary
+                class="flex items-center justify-between p-4 bg-slate-50 cursor-pointer hover:bg-slate-100 transition-colors select-none">
+                <div class="flex items-center gap-3">
+                    <span class="transform transition-transform group-open:rotate-180 text-slate-400">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7">
+                            </path>
+                        </svg>
+                    </span>
+                    <h2 class="text-lg font-semibold text-slate-800">{{ category|title }}</h2>
+                    <div class="flex gap-2">
+                        <span class="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded-full"
+                            title="Basic Ingredients">{{ basic_count }} Basic</span>
+                        <span class="px-2 py-0.5 text-xs font-medium bg-slate-200 text-slate-600 rounded-full"
+                            title="Total Ingredients">{{ items|length }} Total</span>
+                    </div>
+                </div>
+            </summary>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr
+                            class="bg-white border-b border-slate-100 text-xs uppercase text-slate-400 font-semibold tracking-wider">
+                            <th class="p-4 w-1/4">Ingredient Name</th>
+                            <th class="p-4 w-1/6">Sub-Cat</th>
+                            <th class="p-4 w-16">Unit</th>
+                            <th class="p-4 w-12 text-center" title="Calories (kcal)">Cal</th>
+                            <th class="p-4 w-12 text-center" title="Kilojoules (kJ)">kJ</th>
+                            <th class="p-4 w-12 text-center" title="Protein (g)">Prot</th>
+                            <th class="p-4 w-12 text-center" title="Carbohydrates (g)">Carb</th>
+                            <th class="p-4 w-12 text-center" title="Fat (g)">Fat</th>
+                            <th class="p-4 w-12 text-center" title="Sugar (g)">Sug</th>
+                            <th class="p-4 w-12 text-center" title="Fiber (g)">Fib</th>
+                            <th class="p-4 w-12 text-center" title="Sodium (mg)">Sod</th>
+                            <th class="p-4 w-24 text-center">Basic?</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-50">
+                        {% for ing in items %}
+                        <tr
+                            class="transition-colors group/row {{ 'row-basic' if ing.is_basic_ingredient else 'row-extra hidden-row' }} hover:bg-orange-50/50">
+                            <td
+                                class="p-4 font-medium {{ 'text-slate-900 font-bold' if ing.is_basic_ingredient else 'text-slate-500 font-normal' }}">
+                                <div class="flex items-center gap-3">
+                                    {% if ing.image_url %}
+                                    <img src="{{ url_for('static', filename=ing.image_url) }}" alt="{{ ing.name }}"
+                                        class="w-10 h-10 rounded-md object-cover bg-slate-100 shadow-sm border border-slate-100">
+                                    {% else %}
+                                    <div
+                                        class="w-10 h-10 rounded-md bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-300">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z">
+                                            </path>
+                                        </svg>
+                                    </div>
+                                    {% endif %}
+                                    <div>
+                                        {{ ing.name|title }}
+                                        <div class="text-xs text-slate-400 font-normal">{{ ing.id }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="p-4 text-xs text-slate-500">{{ ing.sub_category or '-' }}</td>
+                            <td class="p-4 text-xs text-slate-500">{{ ing.default_unit }}</td>
+
+                            <!-- Nutrition Data -->
+                            <td class="p-4 text-xs text-slate-600 text-center tabular-nums font-mono bg-slate-50/50">{{
+                                ing.calories_per_100g|int if ing.calories_per_100g is not none else '-' }}</td>
+                            <td class="p-4 text-xs text-slate-400 text-center tabular-nums font-mono">{{
+                                ing.kj_per_100g|int if ing.kj_per_100g is not none else '-' }}</td>
+                            <td class="p-4 text-xs text-slate-600 text-center tabular-nums font-mono bg-slate-50/50">{{
+                                ing.protein_per_100g|round(1) if ing.protein_per_100g is not none else '-' }}</td>
+                            <td class="p-4 text-xs text-slate-600 text-center tabular-nums font-mono">{{
+                                ing.carbs_per_100g|round(1) if ing.carbs_per_100g is not none else '-' }}</td>
+                            <td class="p-4 text-xs text-slate-600 text-center tabular-nums font-mono bg-slate-50/50">{{
+                                ing.fat_per_100g|round(1) if ing.fat_per_100g is not none else '-' }}</td>
+                            <td class="p-4 text-xs text-slate-400 text-center tabular-nums font-mono">{{
+                                ing.sugar_per_100g|round(1) if ing.sugar_per_100g is not none else '-' }}</td>
+                            <td class="p-4 text-xs text-slate-400 text-center tabular-nums font-mono bg-slate-50/50">{{
+                                ing.fiber_per_100g|round(1) if ing.fiber_per_100g is not none else '-' }}</td>
+                            <td class="p-4 text-xs text-slate-400 text-center tabular-nums font-mono">{{
+                                ing.sodium_mg_per_100g|int if ing.sodium_mg_per_100g is not none else '-' }}</td>
+                            <td class="p-4 text-center cursor-pointer select-none"
+                                onclick="toggleBasic('{{ ing.id }}', this)">
+                                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm transition-all duration-200
+                                    {% if ing.is_basic_ingredient %}
+                                        bg-green-100 text-green-700 font-bold
+                                    {% else %}
+                                        bg-slate-100 text-slate-400 font-normal hover:bg-slate-200
+                                    {% endif %}" id="status-{{ ing.id }}">
+                                    {% if ing.is_basic_ingredient %}Yes{% else %}No{% endif %}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+                {% if extra_count > 0 %}
+                <div class="p-2 text-center border-t border-slate-100 bg-slate-50/50 show-more-container">
+                    <button onclick="toggleCategoryExtras(this)"
+                        class="text-sm font-medium text-slate-500 hover:text-orange-600 transition-colors py-2 w-full">
+                        Show {{ extra_count }} more non-staple ingredients...
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+        </details>
+        {% endfor %}
+
+    </div>
+</div>
+
+<style>
+    .hidden-row {
+        display: none;
+    }
+</style>
+
+<script>
+    // --- Filtering Logic ---
+
+    function applyFilter(mode) {
+        document.querySelectorAll('.category-container').forEach(details => {
+            // Expand all unless collapsing
+            if (mode !== 'collapse') {
+                details.open = true;
+            }
+
+            const basicRows = details.querySelectorAll('.row-basic');
+            const extraRows = details.querySelectorAll('.row-extra');
+            const showMoreContainer = details.querySelector('.show-more-container');
+            const showMoreBtn = showMoreContainer ? showMoreContainer.querySelector('button') : null;
+
+            if (mode === 'all') {
+                basicRows.forEach(r => r.classList.remove('hidden-row'));
+                extraRows.forEach(r => r.classList.remove('hidden-row'));
+                if (showMoreContainer) showMoreContainer.style.display = 'none'; // Everything shown, no need for button
+            } else if (mode === 'basic') {
+                basicRows.forEach(r => r.classList.remove('hidden-row'));
+                extraRows.forEach(r => r.classList.add('hidden-row'));
+                if (showMoreContainer) {
+                    showMoreContainer.style.display = 'block';
+                    if (showMoreBtn) showMoreBtn.textContent = showMoreBtn.textContent.replace('Hide', 'Show');
+                }
+            } else if (mode === 'non-basic') {
+                basicRows.forEach(r => r.classList.add('hidden-row'));
+                extraRows.forEach(r => r.classList.remove('hidden-row'));
+                if (showMoreContainer) showMoreContainer.style.display = 'none';
+            }
+        });
+    }
+
+    function collapseAll() {
+        document.querySelectorAll('details').forEach(d => d.open = false);
+    }
+
+    function toggleCategoryExtras(btn) {
+        const container = btn.closest('.category-container');
+        const extraRows = container.querySelectorAll('.row-extra');
+        const isHidden = extraRows[0].classList.contains('hidden-row');
+
+        if (isHidden) {
+            extraRows.forEach(r => r.classList.remove('hidden-row'));
+            btn.textContent = "Hide non-staple ingredients";
+        } else {
+            extraRows.forEach(r => r.classList.add('hidden-row'));
+            // Restore original text logic (simplified here)
+            btn.textContent = `Show ${extraRows.length} more non-staple ingredients...`;
+        }
+    }
+
+
+    // --- Toggle Logic (Optimized) ---
+
+    async function toggleBasic(id, cell) {
+        const badge = document.getElementById(`status-${id}`);
+        const row = badge.closest('tr');
+        const nameCell = row.querySelector('td:first-child');
+
+        // Optimistic UI update
+        const isCurrentlyBasic = badge.textContent.trim() === 'Yes';
+        const newStatus = !isCurrentlyBasic;
+
+        updateBadge(badge, newStatus);
+
+        // Update Row Styles
+        if (newStatus) {
+            row.classList.add('row-basic');
+            row.classList.remove('row-extra');
+            nameCell.classList.add('text-slate-900', 'font-bold');
+            nameCell.classList.remove('text-slate-500', 'font-normal');
+        } else {
+            row.classList.remove('row-basic');
+            row.classList.add('row-extra');
+            nameCell.classList.remove('text-slate-900', 'font-bold');
+            nameCell.classList.add('text-slate-500', 'font-normal');
+        }
+
+        try {
+            const response = await fetch(`/api/ingredient/${id}/toggle_basic`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+            });
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || 'Server error');
+            }
+            // Success - server confirmed
+        } catch (error) {
+            console.error('Update failed:', error);
+            // Revert Styles
+            updateBadge(badge, isCurrentlyBasic);
+            if (isCurrentlyBasic) {
+                row.classList.add('row-basic'); row.classList.remove('row-extra');
+                nameCell.classList.add('font-bold');
+            } else {
+                row.classList.remove('row-basic'); row.classList.add('row-extra');
+                nameCell.classList.remove('font-bold');
+            }
+            alert('Failed to update status.');
+        }
+    }
+
+    function updateBadge(badge, isBasic) {
+        if (isBasic) {
+            badge.textContent = 'Yes';
+            badge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm transition-all duration-200 bg-green-100 text-green-700 font-bold';
+        } else {
+            badge.textContent = 'No';
+            badge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm transition-all duration-200 bg-slate-100 text-slate-400 font-normal hover:bg-slate-200';
+        }
+    }
+</script>
+{% endblock %}

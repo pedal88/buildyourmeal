@@ -24,6 +24,9 @@ static/pantry/*
 static/temp/*
 !static/temp/.gitkeep
 
+temp_ingredients_for_Mapping
+data/pantry_*.json
+
 # IDEs
 .vscode/
 .idea/

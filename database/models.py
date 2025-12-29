@@ -24,6 +24,7 @@ class Ingredient(db.Model):
 
     # Intelligence
     aliases: Mapped[str] = mapped_column(Text, default='[]') # JSON list of synonyms
+    is_basic_ingredient: Mapped[bool] = mapped_column(Boolean, default=False) # User preference: Staple ingredient?
 
     # Payload (Flattened)
     image_url: Mapped[str] = mapped_column(String, nullable=True)

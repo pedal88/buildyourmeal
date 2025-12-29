@@ -1,6 +1,6 @@
 import os
 import uuid
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from database.models import db, Ingredient, Recipe, Instruction, RecipeIngredient
 from services.pantry_service import get_slim_pantry_context
 from ai_engine import generate_recipe_ai, get_pantry_id, chefs_data
@@ -261,6 +261,41 @@ def pantry_list():
     categories = [c for c in categories if c] # Filter None
     
     return render_template('pantry.html', ingredients=ingredients, categories=sorted(categories))
+
+@app.route('/pantry')
+def pantry_management():
+    # Fetch all ingredients
+    ingredients = db.session.execute(db.select(Ingredient).order_by(Ingredient.main_category, Ingredient.name)).scalars().all()
+    
+    # Group by category for the view
+    grouped = {}
+    for ing in ingredients:
+        cat = ing.main_category or "Other"
+        if cat not in grouped:
+            grouped[cat] = []
+        grouped[cat].append(ing)
+    
+    # Sort categories
+    sorted_grouped = dict(sorted(grouped.items()))
+    
+    return render_template('pantry_management.html', grouped_ingredients=sorted_grouped)
+
+@app.route('/api/ingredient/<int:id>/toggle_basic', methods=['POST'])
+def toggle_basic_ingredient(id):
+    ing = db.session.get(Ingredient, id)
+    if not ing:
+        return jsonify({'success': False, 'error': 'Ingredient not found'}), 404
+    
+    # Toggle
+    ing.is_basic_ingredient = not ing.is_basic_ingredient
+    db.session.commit()
+    
+    return jsonify({
+        'success': True, 
+        'new_status': ing.is_basic_ingredient,
+        'id': ing.id,
+        'name': ing.name
+    })
 
 @app.route('/generate')
 def generate():
