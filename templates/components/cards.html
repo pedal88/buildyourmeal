@@ -1,8 +1,9 @@
-{% macro visual_ingredient(ingredient, size='md') %}
+{% macro visual_ingredient(ri, size='md') %}
 {#
 A specialized macro to display an ingredient with its image.
-Relies on the 100% coverage provided by static/pantry/
+Expects a RecipeIngredient object (ri) which has .ingredient relation and .amount/.unit fields.
 #}
+{% set ingredient = ri.ingredient %}
 {% set size_classes = {
 'sm': 'w-12 h-12',
 'md': 'w-16 h-16',
@@ -28,9 +29,11 @@ Relies on the 100% coverage provided by static/pantry/
         class="mt-2 text-xs font-medium text-slate-600 text-center leading-tight {% if size != 'xl' %}max-w-[4rem] truncate{% endif %}">
         {{ ingredient.name }}
     </span>
-    {% if ingredient.amount %}
-    <span class="text-[10px] text-slate-400">
-        {{ ingredient.amount }}{{ ingredient.unit }}
+    {# Since we passed the Link Object (RecipeIngredient), we can access amount directly #}
+    {% if ri.amount %}
+    <span class="text-[10px] text-slate-400 font-medium">
+        {{ ri.amount|int if ri.amount == ri.amount|int else ri.amount }} <span class="text-[9px] uppercase">{{ ri.unit
+            }}</span>
     </span>
     {% endif %}
 </div>

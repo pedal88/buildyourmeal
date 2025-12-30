@@ -34,6 +34,7 @@ diets_data = load_json("diets_tag.json")['diets']
 difficulty_data = load_json("difficulty_tag.json")['difficulty']
 protein_data = load_json("protein_types.json")['protein_types']
 meal_types_data = load_json("meal_types.json")['meal_classification']
+cleanup_data = load_json("cleanup_factors.json")['cleanup_scale']
 
 # Flatten valid specific proteins (Tier 2)
 valid_proteins = set()
@@ -115,6 +116,7 @@ class RecipeSchema(BaseModel):
     cuisine: str
     diet: str
     difficulty: Literal["Simplistic", "Moderate", "Elevated"]
+    cleanup_factor: int = Field(..., ge=1, le=5, description="Score 1-5 for cleanup effort")
     protein_type: str
     meal_types: List[str] = Field(default_factory=list)
     ingredient_groups: List[IngredientGroupSchema]
@@ -163,6 +165,52 @@ class RecipeSchema(BaseModel):
 chefs_data = load_json("chefs.json")['chefs']
 chef_map = {c['id']: c for c in chefs_data}
 
+def build_chef_prompt(chef):
+    c = chef.get('constraints', {})
+    ds = chef.get('diet_preferences', [])
+    cs = chef.get('cooking_style', {})
+    il = chef.get('ingredient_logic', {})
+    ins = chef.get('instruction_style', {})
+    
+    # helper for range constraints
+    def fmt_range(key):
+        r = c.get(key, {})
+        return f"{r.get('min', '?')}-{r.get('max', '?')}"
+    
+    prompt = f"""
+    ROLE: {chef.get('name')} ({chef.get('archetype')})
+    DESCRIPTION: {chef.get('description')}
+    
+    PHILOSOPHY & CONSTRAINTS:
+    - Taste Priority: {fmt_range('taste_range')} / 5
+    - Speed Priority: {fmt_range('speed_range')} / 5
+    - Complexity Target: {fmt_range('complexity_range')} / 3 ({c.get('complexity_range',{}).get('note','')})
+    - Cleanup Limit: {fmt_range('cleanup_range')} / 5
+    - Richness Target: {fmt_range('richness_range')} / 5
+    
+    DIET PREFERENCES:
+    """
+    for d in ds:
+        prompt += f"- {d.get('action').upper()} {d.get('diet_id')}\n"
+        
+    prompt += f"""
+    COOKING STYLE:
+    - Preferred Tools: {', '.join(cs.get('preferred_tools', []))}
+    - Avoid Tools: {', '.join(cs.get('avoid_tools', []))}
+    - Preferred Methods: {', '.join(cs.get('preferred_methods', []))}
+    
+    INGREDIENT LOGIC:
+    - Staples: {', '.join(il.get('staples', []))}
+    - Banned: {', '.join(il.get('banned_ingredients', []))}
+    - Low Carb Strategy: {il.get('low_carb_strategy')}
+    
+    INSTRUCTION STYLE:
+    - Tone: {ins.get('tone')}
+    - Example Phrase: "{ins.get('example_phrase')}"
+    """
+    return prompt
+
+
 def generate_recipe_ai(query: str, slim_context: List[dict] = None, chef_id: str = "gourmet") -> RecipeSchema:
     if not client:
         raise Exception("Gemini API key not configured")
@@ -177,12 +225,23 @@ def generate_recipe_ai(query: str, slim_context: List[dict] = None, chef_id: str
         pantry_str = "[]" 
     
     # Select Chef Logic
-    selected_chef = chef_map.get(chef_id, chef_map["gourmet"]) # Default to Marco
+    fallback_chef = chef_map.get("french_classic") 
+    if not fallback_chef:
+         fallback_chef = list(chef_map.values())[0]
+
+    selected_chef = chef_map.get(chef_id, fallback_chef)
     
+    chef_system_prompt = build_chef_prompt(selected_chef)
+    
+    # Build Cleanup Guide String
+    cleanup_guide = "\n    CLEANUP FACTOR GUIDE (1-5):"
+    for item in cleanup_data:
+        cleanup_guide += f"\n    - {item['value']}: {item['description']}"
+
     prompt = f"""
     USER REQUEST: "{query}"
 
-    {selected_chef['system_prompt']}
+    {chef_system_prompt}
     
     TASK: Create a recipe that satisfies the USER REQUEST using only available ingredients.
 
@@ -214,6 +273,7 @@ def generate_recipe_ai(query: str, slim_context: List[dict] = None, chef_id: str
     4. Valid Protein Types (Tier 2): {", ".join([p.title() for p in valid_proteins])}
     5. Valid Meal Types (Select 1-3 that apply): {", ".join(valid_meal_tags)}
     6. Exact pantry names (n) required.
+    7. Cleanup Factor: Assign a score 1-5 based on this guide: {cleanup_guide}
     
     Return the output as a valid JSON object matching this schema (no markdown formatting):
     {{
@@ -221,6 +281,7 @@ def generate_recipe_ai(query: str, slim_context: List[dict] = None, chef_id: str
         "cuisine": "Valid Cuisine",
         "diet": "Valid Diet",
         "difficulty": "Valid Difficulty",
+        "cleanup_factor": 1,
         "protein_type": "Valid Specific Protein",
         "meal_types": ["Tag 1", "Tag 2"],
         "ingredient_groups": [
@@ -307,13 +368,25 @@ def generate_recipe_from_video(video_path: str, caption: str, slim_context: List
     else:
         pantry_str = "[]"
         
-    selected_chef = chef_map.get(chef_id, chef_map["gourmet"])
+    # Select Chef Logic
+    fallback_chef = chef_map.get("french_classic") 
+    if not fallback_chef:
+         fallback_chef = list(chef_map.values())[0]
+
+    selected_chef = chef_map.get(chef_id, fallback_chef)
+    
+    chef_system_prompt = build_chef_prompt(selected_chef)
+
+    # Build Cleanup Guide String
+    cleanup_guide = "\n    CLEANUP FACTOR GUIDE (1-5):"
+    for item in cleanup_data:
+        cleanup_guide += f"\n    - {item['value']}: {item['description']}"
 
     prompt = f"""
     VIDEO ANALYSIS REQUEST. 
     Caption: "{caption}"
 
-    {selected_chef['system_prompt']}
+    {chef_system_prompt}
     
     TASK: Watch this cooking video and extract the recipe. 
     Indentify what is being cooked and how.
@@ -338,6 +411,7 @@ def generate_recipe_from_video(video_path: str, caption: str, slim_context: List
     4. Valid Protein Types (Tier 2): {", ".join([p.title() for p in valid_proteins])}
     5. Valid Meal Types: {", ".join(valid_meal_tags)}
     6. Exact pantry names (n) required if matched.
+    7. Cleanup Factor: Assign a score 1-5 based on this guide: {cleanup_guide}
     
     Return the output as a valid JSON object matching this schema:
     {{
@@ -345,6 +419,7 @@ def generate_recipe_from_video(video_path: str, caption: str, slim_context: List
         "cuisine": "Valid Cuisine",
         "diet": "Valid Diet",
         "difficulty": "Valid Difficulty",
+        "cleanup_factor": 1,
         "protein_type": "Valid Specific Protein",
         "meal_types": ["Tag 1", "Tag 2"],
         "ingredient_groups": [

@@ -1,0 +1,260 @@
+{
+    "cooking_methods": [
+        {
+            "category": "Cold / No-Heat Techniques",
+            "method": "Raw",
+            "typical_ingredients": [
+                "Meat",
+                "Fish",
+                "Vegetables",
+                "Salads"
+            ]
+        },
+        {
+            "category": "Cold / No-Heat Techniques",
+            "method": "Cured",
+            "typical_ingredients": [
+                "Meat",
+                "Fish"
+            ]
+        },
+        {
+            "category": "Cold / No-Heat Techniques",
+            "method": "Fermented",
+            "typical_ingredients": [
+                "Vegetables",
+                "Sauces",
+                "Dairy"
+            ]
+        },
+        {
+            "category": "Cold / No-Heat Techniques",
+            "method": "Marinated",
+            "typical_ingredients": [
+                "Meat",
+                "Fish",
+                "Vegetables"
+            ]
+        },
+        {
+            "category": "Mechanical / Prep",
+            "method": "Blending",
+            "typical_ingredients": [
+                "Smoothies",
+                "Sauces",
+                "Soups",
+                "Purees"
+            ]
+        },
+        {
+            "category": "Moist-Heat Cooking",
+            "method": "Boiled",
+            "typical_ingredients": [
+                "Meat",
+                "Vegetables",
+                "Eggs"
+            ]
+        },
+        {
+            "category": "Moist-Heat Cooking",
+            "method": "Poached",
+            "typical_ingredients": [
+                "Fish",
+                "Eggs",
+                "Chicken"
+            ]
+        },
+        {
+            "category": "Moist-Heat Cooking",
+            "method": "Simmered",
+            "typical_ingredients": [
+                "Stews",
+                "Stocks",
+                "Sauces"
+            ]
+        },
+        {
+            "category": "Moist-Heat Cooking",
+            "method": "Steamed",
+            "typical_ingredients": [
+                "Fish",
+                "Vegetables",
+                "Dumplings"
+            ]
+        },
+        {
+            "category": "Moist-Heat Cooking",
+            "method": "Microwaving",
+            "typical_ingredients": [
+                "Vegetables",
+                "Leftovers",
+                "Melting Fats"
+            ]
+        },
+        {
+            "category": "Moist-Heat Cooking",
+            "method": "Blanched",
+            "typical_ingredients": [
+                "Vegetables",
+                "Nuts"
+            ]
+        },
+        {
+            "category": "Moist-Heat Cooking",
+            "method": "Pressure Cooked",
+            "typical_ingredients": [
+                "Meat",
+                "Legumes",
+                "Stews"
+            ]
+        },
+        {
+            "category": "Moist-Heat Cooking",
+            "method": "Sous Vide",
+            "typical_ingredients": [
+                "Meat",
+                "Fish",
+                "Vegetables"
+            ]
+        },
+        {
+            "category": "Dry-Heat Cooking",
+            "method": "Grilled",
+            "typical_ingredients": [
+                "Meat",
+                "Vegetables"
+            ]
+        },
+        {
+            "category": "Dry-Heat Cooking",
+            "method": "Broiled",
+            "typical_ingredients": [
+                "Fish",
+                "Meat",
+                "Cheese Melts"
+            ]
+        },
+        {
+            "category": "Dry-Heat Cooking",
+            "method": "Roasted",
+            "typical_ingredients": [
+                "Meat",
+                "Vegetables"
+            ]
+        },
+        {
+            "category": "Dry-Heat Cooking",
+            "method": "Baked",
+            "typical_ingredients": [
+                "Vegetables",
+                "Low-Carb Breads",
+                "Casseroles"
+            ]
+        },
+        {
+            "category": "Dry-Heat Cooking",
+            "method": "Toasted",
+            "typical_ingredients": [
+                "Nuts",
+                "Spices",
+                "Seeds"
+            ]
+        },
+        {
+            "category": "Dry-Heat Cooking",
+            "method": "Air-Fried",
+            "typical_ingredients": [
+                "Vegetables",
+                "Wings",
+                "Snacks"
+            ]
+        },
+        {
+            "category": "Dry-Heat Cooking",
+            "method": "Pan-Roasted",
+            "typical_ingredients": [
+                "Thick Steaks",
+                "Fish Fillets",
+                "Chicken Thighs"
+            ]
+        },
+        {
+            "category": "Combination Cooking",
+            "method": "Braising",
+            "typical_ingredients": [
+                "Tough Meat Cuts",
+                "Root Vegetables"
+            ]
+        },
+        {
+            "category": "Combination Cooking",
+            "method": "Stewing",
+            "typical_ingredients": [
+                "Meat chunks",
+                "Vegetables"
+            ]
+        },
+        {
+            "category": "Combination Cooking",
+            "method": "Slow-Cooked",
+            "typical_ingredients": [
+                "Pulled Meat",
+                "Soups",
+                "Roasts"
+            ]
+        },
+        {
+            "category": "High-Fat / High-Heat Cooking",
+            "method": "Sautéed",
+            "typical_ingredients": [
+                "Vegetables",
+                "Thin Meats"
+            ]
+        },
+        {
+            "category": "High-Fat / High-Heat Cooking",
+            "method": "Stir-Fried",
+            "typical_ingredients": [
+                "Vegetables",
+                "Proteins",
+                "Noodles"
+            ]
+        },
+        {
+            "category": "High-Fat / High-Heat Cooking",
+            "method": "Pan-Fried",
+            "typical_ingredients": [
+                "Meat Cutlets",
+                "Fish",
+                "Vegetables"
+            ]
+        },
+        {
+            "category": "High-Fat / High-Heat Cooking",
+            "method": "Deep-Fried",
+            "typical_ingredients": [
+                "Vegetables",
+                "Meat",
+                "Snacks"
+            ]
+        },
+        {
+            "category": "Special / Hybrid Methods",
+            "method": "Smoking",
+            "typical_ingredients": [
+                "Brisket",
+                "Fish",
+                "Ribs"
+            ]
+        },
+        {
+            "category": "Special / Hybrid Methods",
+            "method": "Charred / Blackened",
+            "typical_ingredients": [
+                "Fish",
+                "Vegetables",
+                "Peppers"
+            ]
+        }
+    ]
+}

@@ -1,136 +1,596 @@
 {% extends "base.html" %}
-{% import "components/typography.html" as type %}
-{% import "components/badges.html" as badge %}
 
-{% block title %}Chef Personas - The AI Kitchen{% endblock %}
+{% block title %}Manage Chefs - The AI Kitchen{% endblock %}
+
+{% block head %}
+<!-- noUiSlider -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.js"></script>
+<style>
+    /* Custom Slider Styles */
+    .noUi-target {
+        background: #e2e8f0;
+        /* Default track color */
+        border: none;
+        box-shadow: none;
+    }
+
+    .noUi-connect {
+        background: #15803d;
+        /* Green match Prio text */
+    }
+
+    .noUi-horizontal {
+        height: 4px;
+        /* Narrow track */
+    }
+
+    .noUi-handle {
+        height: 24px;
+        width: 24px;
+        top: -10px;
+        /* Center vertically on 4px track */
+        right: -12px;
+        border-radius: 50%;
+        background: #ffffff;
+        border: 1px solid #cbd5e1;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        /* Slight shadow */
+        cursor: grab;
+    }
+
+    .noUi-handle:active {
+        cursor: grabbing;
+    }
+
+    .noUi-handle:before,
+    .noUi-handle:after {
+        display: none;
+    }
+
+    /* Tri-State Toggle */
+    /* Tri-State Toggle */
+    .tri-state-btn {
+        padding: 0.25rem 0.75rem;
+        font-size: 0.75rem;
+        font-weight: 700;
+        border-radius: 0.25rem;
+        border: 1px solid;
+        transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .tri-state-prioritize {
+        background-color: #dcfce7;
+        color: #15803d;
+        border-color: #bbf7d0;
+    }
+
+    .tri-state-exclude {
+        background-color: #fee2e2;
+        color: #b91c1c;
+        border-color: #fecaca;
+    }
+
+    .tri-state-include {
+        background-color: #f1f5f9;
+        color: #64748b;
+        border-color: #e2e8f0;
+    }
+
+    /* Tag Input */
+    .tag-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        padding: 0.5rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.5rem;
+        background-color: white;
+        min-height: 42px;
+    }
+
+    .tag-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        background-color: #f1f5f9;
+        color: #334155;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+        font-size: 0.875rem;
+        cursor: pointer;
+    }
+
+    .tag-chip:hover {
+        background-color: #e2e8f0;
+    }
+
+    .tag-input {
+        outline: none;
+        flex-grow: 1;
+        background: transparent;
+        font-size: 0.875rem;
+        min-width: 80px;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="bg-white py-12 lg:py-16">
-    <div class="mx-auto max-w-7xl px-6 lg:px-8">
-        {{ type.page_header('Chef Personalities', 'Comparing the distinct brains driving your AI.') }}
+<!-- Macros -->
+{% macro slider_control(chef_id, label, key, min_val, max_val, range_min, range_max, labels=None) %}
+<div class="slider-group" data-key="{{ key }}" data-min="{{ min_val }}" data-max="{{ max_val }}"
+    data-range-min="{{ range_min }}" data-range-max="{{ range_max }}">
+    <div class="flex justify-between mb-2">
+        <label class="text-xs font-bold text-slate-500 uppercase">{{ label }}</label>
+        <span class="text-xs font-mono text-orange-600" id="{{ chef_id }}_{{ key }}_display">
+            {% if labels %}
+            {{ labels[min_val-1] }} - {{ labels[max_val-1] }}
+            {% else %}
+            {{ min_val }} - {{ max_val }}
+            {% endif %}
+        </span>
+    </div>
+    <div id="{{ chef_id }}_{{ key }}_slider" class="mb-4"></div>
+</div>
+{% endmacro %}
 
-        <!-- Comparison Grid -->
-        <div class="mt-16 grid grid-cols-1 gap-8 lg:grid-cols-2">
-            {% for chef in chefs %}
-            <div
-                class="flex flex-col bg-slate-50 rounded-3xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+{% macro tag_input(chef_id, key, tags) %}
+<div class="tag-container" onclick="this.querySelector('input').focus()">
+    {% for tag in tags %}
+    <span class="tag-chip" onclick="this.remove()">{{ tag }} &times;</span>
+    {% endfor %}
+    <input type="text" class="tag-input" data-key="{{ key }}" onkeydown="handleTagInput(event, this)">
+</div>
+{% endmacro %}
+<div class="max-w-screen-2xl mx-auto px-4 py-12">
+    <div class="flex justify-between items-center mb-10">
+        <div>
+            <h1 class="font-serif text-4xl font-bold text-slate-900 mb-2">Chef Personalities</h1>
+            <p class="text-slate-600">Configure the AI archetypes that power your kitchen.</p>
+        </div>
+        <button onclick="saveAllChefs()"
+            class="bg-slate-900 hover:bg-slate-800 text-white px-6 py-3 rounded-full font-bold transition-transform hover:scale-105 active:scale-95 shadow-lg flex items-center gap-2">
+            <span>💾</span> Save All Changes
+        </button>
+    </div>
 
-                <!-- HEADER (Avatar + Name) -->
-                <div class="p-8 border-b border-slate-200 bg-white flex items-center gap-6">
-                    <div
-                        class="h-20 w-20 flex-shrink-0 rounded-full bg-slate-100 border-2 border-slate-200 flex items-center justify-center text-4xl shadow-inner">
-                        {% if chef.id == 'gourmet' %}👨‍🍳{% else %}🚀{% endif %}
-                    </div>
-                    <div>
-                        <h3 class="text-3xl font-serif font-bold text-slate-900">{{ chef.name }}</h3>
-                        <p class="text-sm font-bold text-slate-400 uppercase tracking-widest mt-1">ID: {{ chef.id }}</p>
-                    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-8" id="chefsGrid">
+        {% for chef in chefs %}
+        <!-- Chef Card -->
+        <div class="chef-card bg-white rounded-2xl p-8 shadow-sm border border-slate-200 group hover:border-orange-200 transition-all"
+            data-id="{{ chef.id }}">
+
+            <!-- Header -->
+            <div class="flex justify-between items-start mb-6">
+                <div class="flex-grow mr-4">
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1">Display
+                        Name</label>
+                    <input type="text"
+                        class="chef-name text-2xl font-serif font-bold text-slate-900 w-full border-b border-transparent hover:border-slate-200 focus:border-orange-500 focus:outline-none bg-transparent transition-colors"
+                        value="{{ chef.name }}">
                 </div>
-
-                <!-- SHORT BIO (Fixed Height Slot) -->
-                <div class="p-8 border-b border-slate-200 min-h-[120px] flex flex-col justify-center">
-                    <span class="text-xs font-bold text-slate-400 uppercase mb-2">Archetype</span>
-                    <p class="text-xl font-medium text-orange-600 font-serif leading-tight">
-                        {{ chef.short_bio }}
-                    </p>
+                <div class="text-right">
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1">Archetype</label>
+                    <input type="text"
+                        class="chef-archetype text-sm font-bold text-orange-600 w-full text-right border-b border-transparent hover:border-slate-200 focus:border-orange-500 focus:outline-none bg-transparent"
+                        value="{{ chef.archetype }}">
                 </div>
+            </div>
 
-                <!-- UNIFIED EDIT FORM -->
-                <form action="/chefs/save" method="POST" class="flex-grow flex flex-col">
-                    <input type="hidden" name="chef_id" value="{{ chef.id }}">
-                    {% set dna = chef.system_prompt | parse_chef_dna %}
+            <div class="mb-8">
+                <label class="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Description</label>
+                <textarea
+                    class="chef-description w-full text-slate-600 text-sm bg-slate-50 rounded-lg p-3 border border-slate-100 focus:border-orange-200 focus:outline-none resize-none h-20">{{ chef.description }}</textarea>
+            </div>
 
-                    <!-- SECTION 1: CORE PERSONA -->
-                    <div class="p-8 border-b border-slate-200 space-y-6">
-                        <!-- Role -->
-                        <div>
-                            <label
-                                class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Role</label>
-                            <input type="text" name="role" value="{{ dna.Role[0] if dna.Role else '' }}"
-                                class="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1 text-sm font-bold text-slate-900 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500">
-                        </div>
+            <!-- Constraints (Sliders) -->
+            <div class="mb-8 p-6 bg-slate-50 rounded-xl border border-slate-100">
+                <h3 class="text-sm font-bold text-slate-900 mb-6 flex items-center gap-2">
+                    <span>🧠</span> Cognitive Constraints
+                </h3>
 
-                        <!-- Philosophy -->
-                        <div>
-                            <label
-                                class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Philosophy</label>
-                            <textarea name="philosophy" rows="3"
-                                class="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1 text-sm text-slate-600 leading-relaxed focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500 resize-none">{{ dna.Philosophy[0] if dna.Philosophy else '' }}</textarea>
-                        </div>
+                <div class="space-y-6">
+                    {{ slider_control(chef.id, 'Taste Priority', 'taste_range', chef.constraints.taste_range.min,
+                    chef.constraints.taste_range.max, 1, 5) }}
+                    {{ slider_control(chef.id, 'Speed Priority', 'speed_range', chef.constraints.speed_range.min,
+                    chef.constraints.speed_range.max, 1, 5) }}
+                    {{ slider_control(chef.id, 'Complexity', 'complexity_range', chef.constraints.complexity_range.min,
+                    chef.constraints.complexity_range.max, 1, 3, ['Simplistic', 'Moderate', 'Elevated']) }}
+                    {{ slider_control(chef.id, 'Richness', 'richness_range', chef.constraints.richness_range.min,
+                    chef.constraints.richness_range.max, 1, 5) }}
+                    {{ slider_control(chef.id, 'Cleanup Limit', 'cleanup_range', chef.constraints.cleanup_range.min,
+                    chef.constraints.cleanup_range.max, 1, 5) }}
+                </div>
+            </div>
 
-                        <!-- Tone -->
-                        <div>
-                            <label
-                                class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Tone</label>
-                            <div class="relative">
-                                <span class="absolute left-3 top-1.5 text-orange-300 italic">"</span>
-                                <input type="text" name="tone" value="{{ dna.Tone[0] if dna.Tone else '' }}"
-                                    class="w-full bg-slate-50 border border-slate-200 rounded pl-6 pr-2 py-1 text-sm text-slate-600 italic focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500">
-                                <span class="absolute right-3 top-1.5 text-orange-300 italic">"</span>
+            <!-- Diet Preferences -->
+            <div class="mb-8">
+                <h3 class="text-sm font-bold text-slate-900 mb-2 flex items-center gap-2">
+                    <span>🥗</span> Diet Preferences
+                </h3>
+                <div class="flex gap-2 mb-4">
+                    <span
+                        class="px-2 py-1 rounded bg-green-100 text-green-700 border border-green-200 text-[10px] font-bold uppercase">Prio</span>
+                    <span
+                        class="px-2 py-1 rounded bg-slate-50 text-slate-500 border border-slate-200 text-[10px] font-bold uppercase">Include</span>
+                    <span
+                        class="px-2 py-1 rounded bg-red-100 text-red-700 border border-red-200 text-[10px] font-bold uppercase">Exclude</span>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    {% for diet in diets_list %}
+                    <div class="diet-pill cursor-pointer select-none px-3 py-2 rounded-lg border text-sm font-bold text-center transition-all duration-200 border-slate-200 bg-slate-50 text-slate-500"
+                        onclick="toggleDiet(this)" data-diet-id="{{ diet }}" data-state="include">
+                        {{ diet|title }}
+                    </div>
+                    {% endfor %}
+                </div>
+                <!-- Hidden input to store initial state for JS processing -->
+                <input type="hidden" class="chef-diets-data" value='{{ chef.diet_preferences|tojson }}'>
+            </div>
+
+            <!-- Lists (Tools / Ingredients) -->
+            <div class="space-y-8 mb-8">
+                <!-- Cooking Methods -->
+                <div class="mb-8">
+                    <h3 class="text-sm font-bold text-slate-900 mb-2 flex items-center gap-2">
+                        <span>🍳</span> Cooking Methods
+                    </h3>
+                    <div class="flex gap-2 mb-4">
+                        <span
+                            class="px-2 py-1 rounded bg-green-100 text-green-700 border border-green-200 text-[10px] font-bold uppercase">Prio</span>
+                        <span
+                            class="px-2 py-1 rounded bg-slate-50 text-slate-500 border border-slate-200 text-[10px] font-bold uppercase">Include</span>
+                        <span
+                            class="px-2 py-1 rounded bg-red-100 text-red-700 border border-red-200 text-[10px] font-bold uppercase">Exclude</span>
+                    </div>
+
+                    <div class="space-y-2">
+                        {% for category, methods in grouped_methods.items() %}
+                        <!-- Category Group -->
+                        <div class="border border-slate-200 rounded-lg bg-slate-50/50 overflow-hidden">
+                            <!-- Header / Tier 1 -->
+                            <div class="p-2 flex items-center justify-between bg-white border-b border-slate-100">
+                                <!-- Toggle Button (Method Pill Style) for the Category itself -->
+                                <div class="flex-grow mr-4">
+                                    <div class="method-pill cursor-pointer select-none px-3 py-2 rounded-lg border text-sm font-bold text-center transition-all duration-200 border-slate-200 bg-slate-50 text-slate-500 inline-block w-full md:w-auto"
+                                        onclick="togglePill(this)" data-id="{{ category }}" data-state="include">
+                                        {{ category }}
+                                    </div>
+                                </div>
+
+                                <!-- Expander Arrow -->
+                                <button onclick="toggleGroup(this)"
+                                    class="p-2 text-slate-400 hover:text-slate-600 transition-transform duration-200">
+                                    <svg xmlns="http://www.w3.org/2000/svg"
+                                        class="h-5 w-5 transform rotate-0 transition-transform" fill="none"
+                                        viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </button>
+                            </div>
+
+                            <!-- Tier 2 Methods (Hidden by default) -->
+                            <div class="hidden p-4 bg-slate-50 border-t border-slate-100 grid grid-cols-2 gap-2">
+                                {% for method in methods %}
+                                <div class="method-pill cursor-pointer select-none px-3 py-2 rounded-lg border text-xs font-bold text-center transition-all duration-200 border-slate-200 bg-white text-slate-500 shadow-sm"
+                                    onclick="togglePill(this)" data-id="{{ method }}" data-state="include">
+                                    {{ method }}
+                                </div>
+                                {% endfor %}
                             </div>
                         </div>
+                        {% endfor %}
                     </div>
+                    <!-- Hidden inputs for initial state -->
+                    <input type="hidden" class="chef-pref-methods"
+                        value='{{ chef.cooking_style.preferred_methods|tojson }}'>
+                    <input type="hidden" class="chef-avoid-methods"
+                        value='{{ chef.cooking_style.avoid_methods|tojson }}'>
+                </div>
 
-                    <!-- INTERLUDE: TAGS (Read-Only) -->
-                    <div class="p-8 border-b border-slate-200 bg-slate-50/50">
-                        <span class="text-xs font-bold text-slate-400 uppercase mb-3 block">Traits (Fixed)</span>
-                        <div class="flex flex-wrap gap-2">
-                            {% for tag in chef.style_tags %}
-                            {{ badge.tag_pill(tag, 'slate') }}
-                            {% endfor %}
-                        </div>
+                <!-- Ingredients Lists (Moved) -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-400 uppercase mb-2">Staple Ingredients</h4>
+                        {{ tag_input(chef.id, 'staples', chef.ingredient_logic.staples) }}
                     </div>
-
-                    <!-- SECTION 2: RULES -->
-                    <div class="p-8 bg-slate-50 flex-grow flex flex-col border-b border-slate-200">
-                        <label class="text-[10px] font-bold text-orange-500 uppercase tracking-widest block mb-2">Key
-                            Rules (One per line)</label>
-                        <textarea name="rules"
-                            class="w-full flex-grow bg-white border border-slate-200 rounded p-4 font-mono text-xs text-slate-600 leading-relaxed focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500 resize-none min-h-[150px]">{{ dna.Rules | join('\n') if dna.Rules else '' }}</textarea>
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-400 uppercase mb-2">Banned Ingredients</h4>
+                        {{ tag_input(chef.id, 'banned_ingredients', chef.ingredient_logic.banned_ingredients) }}
                     </div>
+                </div>
 
-                    <!-- ACTIONS -->
-                    <div class="p-4 bg-white border-t border-slate-100 flex gap-2">
-                        <button type="submit"
-                            class="flex-1 rounded-xl bg-slate-800 py-3 text-sm font-bold text-white hover:bg-slate-700 transition-all duration-200">
-                            Save Changes
-                        </button>
-                        <button type="button" onclick="window.location.href='/?chef={{ chef.id }}'"
-                            class="flex-1 rounded-xl bg-orange-600 py-3 text-sm font-bold text-white hover:bg-orange-500 transition-all duration-200">
-                            Select Chef
-                        </button>
+
+
+                <!-- Logic / Style -->
+                <div class="mb-6">
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Low Carb
+                        Strategy</label>
+                    <input type="text"
+                        class="chef-strategy w-full text-sm bg-slate-50 rounded-lg p-3 border border-slate-100 focus:border-orange-200 outline-none"
+                        value="{{ chef.ingredient_logic.low_carb_strategy }}">
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Voice /
+                            Tone</label>
+                        <input type="text"
+                            class="chef-tone w-full text-sm bg-slate-50 rounded-lg p-3 border border-slate-100 focus:border-orange-200 outline-none"
+                            value="{{ chef.instruction_style.tone }}">
                     </div>
-                </form>
-
-
-
-
-
-
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Example
+                            Phrase</label>
+                        <input type="text"
+                            class="chef-phrase w-full text-sm bg-slate-50 rounded-lg p-3 border border-slate-100 focus:border-orange-200 outline-none italic"
+                            value="{{ chef.instruction_style.example_phrase }}">
+                    </div>
+                </div>
 
             </div>
-            {% endfor %}
         </div>
+        {% endfor %}
     </div>
 </div>
 
-<style>
-    /* Custom scrollbar for the prompt box */
-    .custom-scrollbar::-webkit-scrollbar {
-        width: 8px;
+
+
+<script>
+    // Data passed from backend
+    const labelsMap = {
+        'complexity_range': ['Simplistic', 'Moderate', 'Elevated']
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // Initialize Sliders
+        document.querySelectorAll('.slider-group').forEach(group => {
+            const slider = group.querySelector('[id$="_slider"]');
+            const display = group.querySelector('[id$="_display"]');
+            const min = parseInt(group.dataset.min);
+            const max = parseInt(group.dataset.max);
+            const rangeMin = parseInt(group.dataset.rangeMin);
+            const rangeMax = parseInt(group.dataset.rangeMax);
+            const key = group.dataset.key;
+
+            noUiSlider.create(slider, {
+                start: [min, max],
+                connect: true,
+                step: 1,
+                range: { 'min': rangeMin, 'max': rangeMax },
+                margin: 0
+            });
+
+            slider.noUiSlider.on('update', (values) => {
+                const v1 = Math.round(values[0]);
+                const v2 = Math.round(values[1]);
+
+                if (key === 'complexity_range') {
+                    display.innerText = `${labelsMap[key][v1 - 1]} - ${labelsMap[key][v2 - 1]}`;
+                } else {
+                    display.innerText = `${v1} - ${v2}`;
+                }
+
+                // Update dataset for saving
+                group.dataset.currentMin = v1;
+                group.dataset.currentMax = v2;
+            });
+
+            // Set initial dataset
+            group.dataset.currentMin = min;
+            group.dataset.currentMax = max;
+        });
+
+        // Initialize Diet and Method Pills
+        document.querySelectorAll('.chef-card').forEach(card => {
+            // 1. Diets
+            const dietInput = card.querySelector('.chef-diets-data');
+            if (dietInput) {
+                const dietsData = JSON.parse(dietInput.value);
+                dietsData.forEach(pref => {
+                    const el = card.querySelector(`.diet-pill[data-id="${pref.diet_id}"]`);
+                    if (el) setPillState(el, pref.action);
+                });
+            }
+
+            // 2. Methods (Preferred)
+            const prefMethodsInput = card.querySelector('.chef-pref-methods');
+            if (prefMethodsInput) {
+                const prefs = JSON.parse(prefMethodsInput.value);
+                prefs.forEach(m => {
+                    const el = card.querySelector(`.method-pill[data-id="${m}"]`);
+                    if (el) setPillState(el, 'prioritize');
+                });
+            }
+
+            // 3. Methods (Avoid - takes precedence if conflict, though unlikely)
+            const avoidMethodsInput = card.querySelector('.chef-avoid-methods');
+            if (avoidMethodsInput) {
+                const avoids = JSON.parse(avoidMethodsInput.value);
+                avoids.forEach(m => {
+                    const el = card.querySelector(`.method-pill[data-id="${m}"]`);
+                    if (el) setPillState(el, 'exclude');
+                });
+            }
+        });
+    });
+
+    // Tag Input Handler
+    function handleTagInput(e, input) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const val = input.value.trim();
+            if (val) {
+                const chip = document.createElement('span');
+                chip.className = 'tag-chip';
+                chip.innerHTML = `${val} &times;`;
+                chip.onclick = function () { this.remove(); };
+                input.parentNode.insertBefore(chip, input);
+                input.value = '';
+            }
+        } else if (e.key === 'Backspace' && !input.value) {
+            const lastChip = input.previousElementSibling;
+            if (lastChip) lastChip.remove();
+        }
     }
 
-    .custom-scrollbar::-webkit-scrollbar-track {
-        background: #1e293b;
+    // Tri-State Logic (Generic)
+    const states = ['include', 'prioritize', 'exclude'];
+    const stateClasses = {
+        'include': 'tri-state-include',
+        'prioritize': 'tri-state-prioritize',
+        'exclude': 'tri-state-exclude'
+    };
+
+    function togglePill(btn) {
+        let current = 'include';
+        // Check current class presence
+        if (btn.classList.contains('tri-state-prioritize')) current = 'prioritize';
+        if (btn.classList.contains('tri-state-exclude')) current = 'exclude';
+
+        const nextIndex = (states.indexOf(current) + 1) % states.length;
+        const nextState = states[nextIndex];
+
+        setPillState(btn, nextState);
     }
 
-    .custom-scrollbar::-webkit-scrollbar-thumb {
-        background: #475569;
-        border-radius: 4px;
+    function setPillState(btn, state) {
+        // Remove all state classes
+        Object.values(stateClasses).forEach(c => btn.classList.remove(c));
+
+        // Styling logic: when 'include', revert to base gray style. 
+        // When !include, base styles might conflict or just sit underneath.
+        // To be safe, we toggle the base neutral classes too if we want rich styling.
+
+        if (state !== 'include') {
+            // Remove neutral look
+            btn.classList.remove('bg-slate-50', 'text-slate-500', 'border-slate-200');
+        } else {
+            // Add neutral look
+            btn.classList.add('bg-slate-50', 'text-slate-500', 'border-slate-200');
+        }
+
+        // Add state color class
+        btn.classList.add(stateClasses[state]);
+        btn.dataset.state = state;
     }
 
-    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-        background: #64748b;
+    function toggleGroup(btn) {
+        const content = btn.parentElement.nextElementSibling;
+        const icon = btn.querySelector('svg');
+
+        if (content.classList.contains('hidden')) {
+            content.classList.remove('hidden');
+            icon.classList.add('rotate-180');
+        } else {
+            content.classList.add('hidden');
+            icon.classList.remove('rotate-180');
+        }
     }
-</style>
+
+    // Global Save Function
+    async function saveAllChefs() {
+        const chefs = [];
+
+        document.querySelectorAll('.chef-card').forEach(card => {
+            const id = card.dataset.id;
+
+            // Collect Tags
+            const getTags = (key) => {
+                const container = card.querySelector(`.tag-input[data-key="${key}"]`).parentNode;
+                return Array.from(container.querySelectorAll('.tag-chip')).map(c => c.innerText.replace(' ×', '').trim());
+            };
+
+            // Collect Sliders
+            const getRange = (key) => {
+                const el = card.querySelector(`.slider-group[data-key="${key}"]`);
+                return {
+                    min: parseInt(el.dataset.currentMin),
+                    max: parseInt(el.dataset.currentMax)
+                };
+            };
+            if (getRange('complexity_range')) getRange('complexity_range').note = "1=Simplistic, 2=Moderate, 3=Elevated";
+
+            const dietPreferences = [];
+            card.querySelectorAll('.diet-pill').forEach(pill => {
+                const state = pill.dataset.state || 'include';
+                if (state !== 'include') {
+                    dietPreferences.push({
+                        diet_id: pill.dataset.id,
+                        action: state
+                    });
+                }
+            });
+
+            // Collect Methods (Split back into Preferred/Avoid arrays)
+            const preferredMethods = [];
+            const avoidMethods = [];
+            card.querySelectorAll('.method-pill').forEach(pill => {
+                const state = pill.dataset.state || 'include';
+                const method = pill.dataset.id;
+                if (state === 'prioritize') preferredMethods.push(method);
+                if (state === 'exclude') avoidMethods.push(method);
+            });
+
+            const chef = {
+                id: id,
+                name: card.querySelector('.chef-name').value,
+                archetype: card.querySelector('.chef-archetype').value,
+                description: card.querySelector('.chef-description').value,
+                constraints: {
+                    taste_range: getRange('taste_range'),
+                    speed_range: getRange('speed_range'),
+                    complexity_range: { ...getRange('complexity_range'), note: "1=Simplistic, 2=Moderate, 3=Elevated" },
+                    richness_range: getRange('richness_range'),
+                    cleanup_range: getRange('cleanup_range')
+                },
+                diet_preferences: dietPreferences,
+                cooking_style: {
+                    preferred_tools: [], // Legacy removal or keep empty? User said remove tools, let's keep empty.
+                    avoid_tools: [],
+                    preferred_methods: preferredMethods,
+                    avoid_methods: avoidMethods
+                },
+                ingredient_logic: {
+                    staples: getTags('staples'),
+                    banned_ingredients: getTags('banned_ingredients'),
+                    low_carb_strategy: card.querySelector('.chef-strategy').value
+                },
+                instruction_style: {
+                    tone: card.querySelector('.chef-tone').value,
+                    example_phrase: card.querySelector('.chef-phrase').value
+                }
+            };
+            chefs.push(chef);
+        });
+
+        try {
+            const res = await fetch('/chefs/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ chefs })
+            });
+
+            if (res.ok) {
+                // simple feedback
+                const btn = document.querySelector('button[onclick="saveAllChefs()"]');
+                const oldText = btn.innerHTML;
+                btn.innerHTML = "<span>✅</span> Saved!";
+                btn.classList.add('bg-green-600');
+                setTimeout(() => {
+                    btn.innerHTML = oldText;
+                    btn.classList.remove('bg-green-600');
+                }, 2000);
+            } else {
+                alert('Failed to save chefs.');
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Error saving chefs.');
+        }
+    }
+</script>
 {% endblock %}

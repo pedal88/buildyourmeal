@@ -62,6 +62,9 @@ class Recipe(db.Model):
     total_fiber: Mapped[float] = mapped_column(Float, nullable=True)
     total_sugar: Mapped[float] = mapped_column(Float, nullable=True)
 
+    # Metadata
+    cleanup_factor: Mapped[int] = mapped_column(Integer, nullable=True)
+
     instructions: Mapped[list["Instruction"]] = relationship(back_populates="recipe", cascade="all, delete-orphan")
     ingredients: Mapped[list["RecipeIngredient"]] = relationship(back_populates="recipe", cascade="all, delete-orphan")
 

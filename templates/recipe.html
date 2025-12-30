@@ -121,7 +121,7 @@ Ingredients:
                         <!-- Visual Ingredient Grid -->
                         <div class="grid grid-cols-3 gap-2 place-items-stretch">
                             {% for item in items %}
-                            {{ card.visual_ingredient(item.ingredient, size='xl') }}
+                            {{ card.visual_ingredient(item, size='xl') }}
                             {% endfor %}
                         </div>
                     </div>

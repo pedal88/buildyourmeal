@@ -202,71 +202,74 @@ def index():
 
 import json
 
+def load_json_option(filename, key):
+    data_dir = os.path.join(app.root_path, 'data')
+    try:
+        with open(os.path.join(data_dir, filename), 'r') as f:
+            return json.load(f).get(key, [])
+    except:
+        return []
+
 @app.route('/chefs')
 def chefs_list():
-    return render_template('chefs.html', chefs=chefs_data)
+    diets_data = load_json_option('diets_tag.json', 'diets')
+    
+    # Load Cooking Methods (Grouped)
+    methods_data_raw = load_json_option('cooking_methods.json', 'cooking_methods')
+    grouped_methods = {}
+    for m in methods_data_raw:
+        cat = m['category']
+        if cat not in grouped_methods:
+            grouped_methods[cat] = []
+        grouped_methods[cat].append(m['method'])
+    
+    # Sort keys
+    grouped_methods = dict(sorted(grouped_methods.items()))
+    
+    return render_template('chefs.html', chefs=chefs_data, diets_list=diets_data, grouped_methods=grouped_methods)
 
 @app.route('/chefs/save', methods=['POST'])
-def save_chef_prompt():
-    chef_id = request.form.get('chef_id')
-    
-    # Check if we are saving via raw prompt OR individual fields
-    if request.form.get('system_prompt'):
-        new_prompt = request.form.get('system_prompt')
-    else:
-        # Reconstruct from fields
-        role = request.form.get('role', '').strip()
-        philosophy = request.form.get('philosophy', '').strip()
-        tone = request.form.get('tone', '').strip()
-        rules = request.form.get('rules', '').strip()
+def save_chefs_json():
+    try:
+        data = request.get_json()
+        if not data or 'chefs' not in data:
+            return jsonify({'success': False, 'error': 'Invalid JSON structure'}), 400
         
-        # Ensure proper formatting
-        new_prompt = f"ROLE: {role}\nPHILOSOPHY: {philosophy}\n\nTONE: {tone}\n\nRULES:\n{rules}"
-    
-    if not chef_id:
-        flash("Missing chef ID", "error")
-        return redirect(url_for('chefs_list'))
+        new_chefs = data['chefs']
         
-    # 1. Update In-Memory Data
-    target_chef = next((c for c in chefs_data if c['id'] == chef_id), None)
-    if target_chef:
-        target_chef['system_prompt'] = new_prompt
-        
-        # 2. Persist to JSON
+        # Validate/Persist
         json_path = os.path.join(os.path.dirname(__file__), "data", "chefs.json")
-        try:
-            with open(json_path, 'r') as f:
-                data = json.load(f)
-            
-            # Find in JSON structure
-            for chef in data['chefs']:
-                if chef['id'] == chef_id:
-                    chef['system_prompt'] = new_prompt
-                    break
-            
-            with open(json_path, 'w') as f:
-                json.dump(data, f, indent=4)
-                
-            flash(f"Updated persona for {target_chef['name']}", "success")
-        except Exception as e:
-             flash(f"Error saving to disk: {e}", "error")
-    else:
-        flash("Chef not found", "error")
         
-    return redirect(url_for('chefs_list'))
+        # We replace the entire list with the new data from UI
+        # But we should preserve structure wrappers if any
+        full_data = {"chefs": new_chefs}
+        
+        with open(json_path, 'w') as f:
+            json.dump(full_data, f, indent=2)
+            
+        # Update in-memory reference
+        global chefs_data
+        chefs_data = new_chefs
+        
+        # Also need to update cache in ai_engine if it's imported there
+        # Since ai_engine loads on import, we might need a reload mechanism 
+        # or just let the app restart handle it. 
+        # For this dev server, a restart is often best, but let's try to update the reference if shared.
+        import ai_engine
+        ai_engine.chefs_data = new_chefs
+        ai_engine.chef_map = {c['id']: c for c in new_chefs}
+
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        print(f"Error saving chefs: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 
 @app.route('/recipes')
 def recipes_list():
     # 1. Load Filter Data Options
-    data_dir = os.path.join(app.root_path, 'data')
-    
-    # Helper to load safely
-    def load_json_option(filename, key):
-        try:
-            with open(os.path.join(data_dir, filename), 'r') as f:
-                return json.load(f).get(key, [])
-        except:
-            return []
+    # Use global load_json_option helper
 
     cuisine_options = load_json_option('cuisines.json', 'cuisines')
     diet_options = load_json_option('diets_tag.json', 'diets')
@@ -356,13 +359,7 @@ def recipes_list():
 @app.route('/recipes_list')
 def recipes_table_view():
     # 1. Load Filter Data Options
-    data_dir = os.path.join(app.root_path, 'data')
-    def load_json_option(filename, key):
-        try:
-            with open(os.path.join(data_dir, filename), 'r') as f:
-                return json.load(f).get(key, [])
-        except:
-            return []
+    # Use global load_json_option helper
 
     cuisine_options = load_json_option('cuisines.json', 'cuisines')
     diet_options = load_json_option('diets_tag.json', 'diets')

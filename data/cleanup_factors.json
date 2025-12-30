@@ -1,0 +1,24 @@
+{
+    "cleanup_scale": [
+        {
+            "value": 1,
+            "description": "Very Low (One pot/pan, minimal chopping)"
+        },
+        {
+            "value": 2,
+            "description": "Low (Standard meal, few utensils)"
+        },
+        {
+            "value": 3,
+            "description": "Moderate (Average cooking process)"
+        },
+        {
+            "value": 4,
+            "description": "High (Multiple pans, extensive prep)"
+        },
+        {
+            "value": 5,
+            "description": "Very High (The kitchen is a disaster zone)"
+        }
+    ]
+}
