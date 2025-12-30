@@ -45,6 +45,36 @@ def generate_visual_prompt(recipe_text: str, ingredients_list: str = None) -> st
     
     return response.text.strip()
 
+def generate_visual_prompt_from_image(image_bytes: bytes) -> str:
+    """
+    Uses Gemini Vision to analyze an uploaded image and write a prompt to recreate it.
+    """
+    if not client:
+        raise Exception("Google API Key not configured")
+        
+    config = load_photographer_config()
+    
+    full_prompt = f"""
+    {config['system_prompt']}
+    
+    TASK: Analyze the provided food image. Write a highly detailed visual prompt that would allow an AI model to recreate this exact dish, lighting, styling, and composition.
+    Focus on:
+    1. The textures and ingredient visibility.
+    2. The lighting setup (direction, hardness, color).
+    3. The plating and background.
+    """
+    
+    # Create the image object for Gemini
+    # For new genai SDK (v1.0+), we can pass PIL images or bytes directly in contents
+    image = Image.open(BytesIO(image_bytes))
+
+    response = client.models.generate_content(
+        model='gemini-2.0-flash-exp',
+        contents=[full_prompt, image]
+    )
+    
+    return response.text.strip()
+
 def generate_actual_image(visual_prompt: str) -> Image.Image:
     """
     Uses Gemini (Image) to generate the actual pixel data from the prompt.

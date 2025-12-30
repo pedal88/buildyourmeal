@@ -28,7 +28,7 @@ graph TD
     E --> F[UI: Recipe Preview]
     
     subgraph "Visual Pipeline"
-    F -->|User Clicks 'Snap Photo'| G[Photographer Service]
+    F -->|User Clicks 'Studio/Snap Photo'| G[Photographer Service]
     G -->|Extract Visual DNA| H[Prompt Engineer]
     H -->|Enhanced Prompt| I[Imagen 3: Image Engine]
     I -->|Raw Bytes| J[Image Processor: PIL]
@@ -70,9 +70,12 @@ System prompts are not hardcoded strings. They are dynamic constructs assembled 
 
 ### Image Generation
 We do not simply ask for "an image of the dish." The `photographer_service.py` constructs a "Visual Prompt" that describes:
-*   **Subject**: The gathered list of verified ingredients.
+*   **Subject**: The gathered list of verified ingredients or a reference image analysis.
 *   **Lighting**: Defined by the photographer persona.
 *   **Composition**: 1:1 Aspect Ratio, Macro Food Photography styles.
+
+### Vision Capabilities
+The studio now supports **Gemini Vision (1.5/2.0 Flash)** to analyze uploaded reference images. The system extracts style, lighting, and plating details from the user's photo to generate a matching prompt.
 
 ## 5. Development Setup
 

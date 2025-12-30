@@ -33,18 +33,15 @@
         "preferred_tools": [],
         "avoid_tools": [],
         "preferred_methods": [
-          "Braising",
-          "Sous Vide",
           "Blending",
-          "Air-Fried",
-          "Microwaving"
+          "Sous Vide"
         ],
         "avoid_methods": [
-          "Air-Fried",
-          "Microwaving",
-          "Deep-Fried",
           "Braising",
-          "Slow-Cooked"
+          "Slow-Cooked",
+          "Air-Fried",
+          "Deep-Fried",
+          "Microwaving"
         ]
       },
       "ingredient_logic": {
@@ -101,15 +98,15 @@
         "preferred_tools": [],
         "avoid_tools": [],
         "preferred_methods": [
-          "Sous Vide",
-          "Blending",
           "Air-Fried",
-          "Microwaving"
+          "Blending",
+          "Microwaving",
+          "Sous Vide"
         ],
         "avoid_methods": [
-          "Deep-Fried",
           "Braising",
-          "Slow-Cooked"
+          "Slow-Cooked",
+          "Deep-Fried"
         ]
       },
       "ingredient_logic": {
@@ -162,14 +159,14 @@
         "preferred_tools": [],
         "avoid_tools": [],
         "preferred_methods": [
-          "Blending",
           "Air-Fried",
+          "Blending",
           "Microwaving"
         ],
         "avoid_methods": [
-          "Deep-Fried",
           "Braising",
-          "Slow-Cooked"
+          "Slow-Cooked",
+          "Deep-Fried"
         ]
       },
       "ingredient_logic": {
@@ -208,7 +205,7 @@
         },
         "complexity_range": {
           "min": 1,
-          "max": 1,
+          "max": 2,
           "note": "1=Simplistic, 2=Moderate, 3=Elevated"
         },
         "richness_range": {

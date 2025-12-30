@@ -35,7 +35,7 @@
 
         <!-- Subtle Retake/Generate Button -->
         <div class="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-            <form id="photoForm" action="/photographer" method="POST">
+            <form id="photoForm" action="/studio" method="POST">
                 <input type="hidden" name="recipe_id" value="{{ recipe.id }}">
                 <input type="hidden" name="ingredients_list"
                     value="{% for item in recipe.ingredients %}{{ item.ingredient.name }}, {% endfor %}">

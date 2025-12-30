@@ -5,7 +5,7 @@ from database.models import db, Ingredient, Recipe, Instruction, RecipeIngredien
 from sqlalchemy import or_
 from services.pantry_service import get_slim_pantry_context
 from ai_engine import generate_recipe_ai, get_pantry_id, chefs_data
-from services.photographer_service import generate_visual_prompt, generate_actual_image, load_photographer_config
+from services.photographer_service import generate_visual_prompt, generate_actual_image, generate_visual_prompt_from_image, load_photographer_config
 from utils.image_helpers import generate_ingredient_placeholder
 import base64
 from io import BytesIO
@@ -78,8 +78,9 @@ def utility_processor():
 db.init_app(app)
 
 # PHOTOGRAPHER ROUTES
-@app.route('/photographer', methods=['GET', 'POST'])
-def photographer_studio():
+
+@app.route('/studio', methods=['GET', 'POST'])
+def studio_view():
     prompt = None
     recipe_text = ""
     recipe_id = None
@@ -102,18 +103,26 @@ def photographer_studio():
         recipe_id = request.form.get('recipe_id')
         ingredients_list = request.form.get('ingredients_list')
         
-        if recipe_text:
+        # Check for Image Upload (Option 1B)
+        if 'reference_image' in request.files and request.files['reference_image'].filename != '':
+            file = request.files['reference_image']
+            image_bytes = file.read()
+            prompt = generate_visual_prompt_from_image(image_bytes)
+            
+        # Fallback to Text (Option 1A)
+        elif recipe_text:
             prompt = generate_visual_prompt(recipe_text, ingredients_list)
             
-    return render_template('photographer.html', 
+            
+    return render_template('studio.html', 
                          config=config, 
                          prompt=prompt, 
                          recipe_text=recipe_text,
                          recipe_id=recipe_id,
                          ingredients_list=ingredients_list)
 
-@app.route('/photographer/snap', methods=['POST'])
-def photographer_snap():
+@app.route('/studio/snap', methods=['POST'])
+def studio_snap():
     prompt = request.form.get('visual_prompt')
     recipe_text = request.form.get('recipe_text') # Retrieve context
     recipe_id = request.form.get('recipe_id')
@@ -121,7 +130,7 @@ def photographer_snap():
     config = load_photographer_config()
 
     if not prompt:
-        return redirect(url_for('photographer_studio'))
+        return redirect(url_for('studio_view'))
         
     try:
         # Generate the Image
@@ -133,7 +142,7 @@ def photographer_snap():
         img.save(temp_path, format="PNG")
         
         # Render template with the image filename AND context
-        return render_template('photographer.html', 
+        return render_template('studio.html', 
                              config=config, 
                              prompt=prompt, 
                              recipe_text=recipe_text,
@@ -145,14 +154,14 @@ def photographer_snap():
         flash(f"Error generating image: {str(e)}", "error")
         # Log the full error
         print(f"Error generating image: {e}")
-        return render_template('photographer.html', 
+        return render_template('studio.html', 
                              config=config, 
                              prompt=prompt, 
                              recipe_text=recipe_text,
                              recipe_id=recipe_id,
                              ingredients_list=ingredients_list)
 
-@app.route('/photographer/save', methods=['POST'])
+@app.route('/studio/save', methods=['POST'])
 def save_recipe_image():
     filename = request.form.get('filename')
     recipe_id = request.form.get('recipe_id')
@@ -621,7 +630,7 @@ def ingredient_placeholder(food_id):
 from services.social_media_service import SocialMediaExtractor
 from ai_engine import generate_recipe_ai, get_pantry_id, chefs_data, generate_recipe_from_video
 
-# ... existing code ...
+
 
 @app.route('/generate/video', methods=['POST'])
 def generate_from_video():

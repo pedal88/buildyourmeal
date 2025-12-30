@@ -211,6 +211,40 @@ def build_chef_prompt(chef):
     return prompt
 
 
+# Helper: Extract JSON from mixed text
+def extract_json_from_text(text: str):
+    """
+    Robustly extract JSON object from a string that might contain other text.
+    Finds the first '{' and the last '}'.
+    """
+    try:
+        # 1. Simple Case: It's clean JSON
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+
+    # 2. Markdown Strip Case
+    clean_text = text.replace('```json', '').replace('```', '').strip()
+    try:
+        return json.loads(clean_text)
+    except json.JSONDecodeError:
+        pass
+
+    # 3. Brute Force Substring Case (Find first { and last })
+    start = text.find('{')
+    end = text.rfind('}')
+    
+    if start != -1 and end != -1 and end > start:
+        json_str = text[start : end + 1]
+        try:
+             return json.loads(json_str)
+        except json.JSONDecodeError:
+             # Last ditch: try to fix common trailing comma or newlines? 
+             # For now, just fail.
+             pass
+             
+    raise ValueError(f"Could not extract valid JSON from response: {text[:100]}...")
+
 def generate_recipe_ai(query: str, slim_context: List[dict] = None, chef_id: str = "gourmet") -> RecipeSchema:
     if not client:
         raise Exception("Gemini API key not configured")
@@ -225,11 +259,14 @@ def generate_recipe_ai(query: str, slim_context: List[dict] = None, chef_id: str
         pantry_str = "[]" 
     
     # Select Chef Logic
+    print(f"DEBUG IN: Requested Chef ID: '{chef_id}'")
+    
     fallback_chef = chef_map.get("french_classic") 
     if not fallback_chef:
          fallback_chef = list(chef_map.values())[0]
 
     selected_chef = chef_map.get(chef_id, fallback_chef)
+    print(f"DEBUG OUT: Selected Chef: {selected_chef.get('name')} (ID: {selected_chef.get('id')})")
     
     chef_system_prompt = build_chef_prompt(selected_chef)
     
@@ -306,13 +343,10 @@ def generate_recipe_ai(query: str, slim_context: List[dict] = None, chef_id: str
     )
     
     try:
-        text = response.text.replace('```json', '').replace('```', '').strip()
-        data = json.loads(text)
+        data = extract_json_from_text(response.text)
         return RecipeSchema(**data)
-    except json.JSONDecodeError:
-        raise ValueError(f"AI returned invalid JSON: {response.text}")
     except Exception as e:
-        raise ValueError(f"Validation failed: {e}")
+        raise ValueError(f"Validation failed: {e}. Raw response: {response.text[:200]}")
 
 def get_pantry_id(name: str):
     return pantry_map.get(name.lower())
@@ -393,6 +427,11 @@ def generate_recipe_from_video(video_path: str, caption: str, slim_context: List
     MATCH ingredients to my available pantry list where possible: 
     {pantry_str}
 
+    CRITICAL: YOU MUST ESTIMATE AMOUNTS.
+    - Resulting amounts MUST be specific numbers (e.g. 200.0, not 0).
+    - If the video doesn't state the amount, USE YOUR CHEF KNOWLEDGE to estimate a reasonable quantity for 2 servings.
+    - Do not output "to taste" or 0 for main ingredients (meat, veg, carbs).
+
     COMPONENT ARCHITECTURE RULES:
     1. DEFAULT TO SINGLE COMPONENT: Cohesive dishes (Pasta, Pizza, Burgers, Salads, Soups) must be ONE component.
        - Valid: "Spaghetti Carbonara" (Everything included).
@@ -453,8 +492,7 @@ def generate_recipe_from_video(video_path: str, caption: str, slim_context: List
             pass # Non-critical
 
         # 6. Parse
-        text = response.text.replace('```json', '').replace('```', '').strip()
-        data = json.loads(text)
+        data = extract_json_from_text(response.text)
         return RecipeSchema(**data)
         
     except Exception as e:
