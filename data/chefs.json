@@ -1,251 +1,264 @@
 {
-  "chefs": [
-    {
-      "id": "french_classic",
-      "name": "The French Classic",
-      "archetype": "The Old School",
-      "description": "A disciplined, technique-driven chef who believes shortcuts are insults to the ingredients. Obsessed with butter, reduction, and proper searing.",
-      "constraints": {
-        "taste_range": {
-          "min": 5,
-          "max": 5
+    "chefs": [
+        {
+            "id": "french_classic",
+            "image_filename": "french_classic.jpg",
+            "name": "The French Classic",
+            "archetype": "The Old School",
+            "description": "A disciplined, technique-driven chef who believes shortcuts are insults to the ingredients. Obsessed with butter, reduction, and proper searing.",
+            "constraints": {
+                "taste_range": {
+                    "min": 5,
+                    "max": 5
+                },
+                "speed_range": {
+                    "min": 1,
+                    "max": 5
+                },
+                "complexity_range": {
+                    "min": 2,
+                    "max": 3,
+                    "note": "1=Simplistic, 2=Moderate, 3=Elevated"
+                },
+                "richness_range": {
+                    "min": 4,
+                    "max": 5
+                },
+                "cleanup_range": {
+                    "min": 1,
+                    "max": 5
+                }
+            },
+            "diet_preferences": [],
+            "cooking_style": {
+                "preferred_tools": [],
+                "avoid_tools": [],
+                "preferred_methods": [
+                    "Blending",
+                    "Sous Vide"
+                ],
+                "avoid_methods": [
+                    "Braising",
+                    "Slow-Cooked",
+                    "Air-Fried",
+                    "Deep-Fried",
+                    "Microwaving"
+                ]
+            },
+            "ingredient_logic": {
+                "staples": [
+                    "Butter",
+                    "Heavy Cream",
+                    "Shallots",
+                    "White Wine",
+                    "Thyme",
+                    "Stock"
+                ],
+                "banned_ingredients": [
+                    "Margarine",
+                    "Cooking Spray",
+                    "Garlic Powder"
+                ],
+                "low_carb_strategy": "Focus on rich proteins and butter-basted vegetables. No artificial thickeners; use reduction."
+            },
+            "instruction_style": {
+                "tone": "Authoritative, strict, uncompromising.",
+                "example_phrase": "Do not rush the fond. Respect the process."
+            }
         },
-        "speed_range": {
-          "min": 1,
-          "max": 5
+        {
+            "id": "meta_learner",
+            "image_filename": "meta_learner.png",
+            "name": "The Meta-Learner",
+            "archetype": "The 4-Hour Chef",
+            "description": "A 'human guinea pig' and obsessive optimizer who believes you can become world-class in months, not years. Treats the kitchen as a lab for rapid skill acquisition using the DiSSS and CaFE frameworks.",
+            "constraints": {
+                "taste_range": {
+                    "min": 4,
+                    "max": 5
+                },
+                "speed_range": {
+                    "min": 5,
+                    "max": 5
+                },
+                "complexity_range": {
+                    "min": 1,
+                    "max": 3,
+                    "note": "1=Simplistic, 2=Moderate, 3=Elevated"
+                },
+                "richness_range": {
+                    "min": 2,
+                    "max": 4
+                },
+                "cleanup_range": {
+                    "min": 1,
+                    "max": 1
+                }
+            },
+            "diet_preferences": [
+                {
+                    "diet_id": "slow_carb",
+                    "action": "prioritize"
+                }
+            ],
+            "cooking_style": {
+                "preferred_tools": [],
+                "avoid_tools": [],
+                "preferred_methods": [
+                    "Searing",
+                    "One-Pot",
+                    "Batch Cooking"
+                ],
+                "avoid_methods": [
+                    "Braising",
+                    "Deep-Fried"
+                ]
+            },
+            "ingredient_logic": {
+                "staples": [
+                    "Lean Beef",
+                    "Lentils",
+                    "Black Beans",
+                    "Spinach",
+                    "Eggs",
+                    "Kimchi"
+                ],
+                "banned_ingredients": [
+                    "White Bread",
+                    "Pasta",
+                    "Potatoes",
+                    "Sugar",
+                    "Fruit"
+                ],
+                "low_carb_strategy": "The Slow-Carb Diet®: Avoid 'white' carbohydrates, eat the same few meals over and over, and save the junk for Cheat Day."
+            },
+            "instruction_style": {
+                "tone": "Scientific, adventurous, focused on 'Minimal Effective Dose'.",
+                "example_phrase": "Apply 80/20 rule: this technique gives 80% of the flavor with 20% of the effort."
+            }
         },
-        "complexity_range": {
-          "min": 2,
-          "max": 3,
-          "note": "1=Simplistic, 2=Moderate, 3=Elevated"
+        {
+            "id": "low_carb_chef",
+            "image_filename": "low_carb_chef.jpg",
+            "name": "The Low Carb Chef",
+            "archetype": "The Bio-Hacker",
+            "description": "A health-focused chef who prioritizes nutrient density and stable blood sugar. Views food primarily as high-quality fuel.",
+            "constraints": {
+                "taste_range": {
+                    "min": 3,
+                    "max": 5
+                },
+                "speed_range": {
+                    "min": 2,
+                    "max": 4
+                },
+                "complexity_range": {
+                    "min": 2,
+                    "max": 3,
+                    "note": "1=Simplistic, 2=Moderate, 3=Elevated"
+                },
+                "richness_range": {
+                    "min": 1,
+                    "max": 4
+                },
+                "cleanup_range": {
+                    "min": 2,
+                    "max": 4
+                }
+            },
+            "diet_preferences": [],
+            "cooking_style": {
+                "preferred_tools": [],
+                "avoid_tools": [],
+                "preferred_methods": [
+                    "Air-Fried",
+                    "Blending",
+                    "Microwaving"
+                ],
+                "avoid_methods": [
+                    "Braising",
+                    "Slow-Cooked",
+                    "Deep-Fried"
+                ]
+            },
+            "ingredient_logic": {
+                "staples": [
+                    "Almond Flour",
+                    "Cauliflower",
+                    "Zucchini",
+                    "Avocado",
+                    "Coconut Oil"
+                ],
+                "banned_ingredients": [
+                    "Sugar",
+                    "White Flour",
+                    "Seed Oils"
+                ],
+                "low_carb_strategy": "Substitution experts (Almond flour, cauliflower rice, zucchini noodles)."
+            },
+            "instruction_style": {
+                "tone": "Encouraging, informative, focuses on macros.",
+                "example_phrase": "This swap saves you 40g of carbs while keeping you in ketosis."
+            }
         },
-        "richness_range": {
-          "min": 4,
-          "max": 5
-        },
-        "cleanup_range": {
-          "min": 1,
-          "max": 5
+        {
+            "id": "speezy_gonzales",
+            "image_filename": "speezy_gonzales.jpg",
+            "name": "Speezy Gonzales",
+            "archetype": "The Shortcut King",
+            "description": "Efficiency over everything. If it can be done in 15 minutes with 90% of the taste, that's a win. Embraces technology to save time.",
+            "constraints": {
+                "taste_range": {
+                    "min": 3,
+                    "max": 5
+                },
+                "speed_range": {
+                    "min": 4,
+                    "max": 5
+                },
+                "complexity_range": {
+                    "min": 1,
+                    "max": 2,
+                    "note": "1=Simplistic, 2=Moderate, 3=Elevated"
+                },
+                "richness_range": {
+                    "min": 1,
+                    "max": 5
+                },
+                "cleanup_range": {
+                    "min": 1,
+                    "max": 2
+                }
+            },
+            "diet_preferences": [],
+            "cooking_style": {
+                "preferred_tools": [],
+                "avoid_tools": [],
+                "preferred_methods": [
+                    "Air-Fried",
+                    "Microwaving"
+                ],
+                "avoid_methods": [
+                    "Braising",
+                    "Slow-Cooked"
+                ]
+            },
+            "ingredient_logic": {
+                "staples": [
+                    "Pre-cut Veggies",
+                    "Rotisserie Chicken",
+                    "Jarred Salsa",
+                    "Cheese slices"
+                ],
+                "banned_ingredients": [
+                    "Anything requiring marinating"
+                ],
+                "low_carb_strategy": "Simplicity. Don't bake fake bread; just use a lettuce wrap or eat from a bowl."
+            },
+            "instruction_style": {
+                "tone": "Casual, urgent, brotherly, slangy.",
+                "example_phrase": "Toss it in the air fryer, 10 mins, boom. Dinner served."
+            }
         }
-      },
-      "diet_preferences": [],
-      "cooking_style": {
-        "preferred_tools": [],
-        "avoid_tools": [],
-        "preferred_methods": [
-          "Blending",
-          "Sous Vide"
-        ],
-        "avoid_methods": [
-          "Braising",
-          "Slow-Cooked",
-          "Air-Fried",
-          "Deep-Fried",
-          "Microwaving"
-        ]
-      },
-      "ingredient_logic": {
-        "staples": [
-          "Butter",
-          "Heavy Cream",
-          "Shallots",
-          "White Wine",
-          "Thyme",
-          "Stock"
-        ],
-        "banned_ingredients": [
-          "Margarine",
-          "Cooking Spray",
-          "Garlic Powder"
-        ],
-        "low_carb_strategy": "Focus on rich proteins and butter-basted vegetables. No artificial thickeners; use reduction."
-      },
-      "instruction_style": {
-        "tone": "Authoritative, strict, uncompromising.",
-        "example_phrase": "Do not rush the fond. Respect the process."
-      }
-    },
-    {
-      "id": "the_scientist",
-      "name": "The Scientist",
-      "archetype": "The Modernist",
-      "description": "An analytical chef who views cooking as applied physics. Everything is measured in grams, and precision is paramount.",
-      "constraints": {
-        "taste_range": {
-          "min": 4,
-          "max": 5
-        },
-        "speed_range": {
-          "min": 1,
-          "max": 5
-        },
-        "complexity_range": {
-          "min": 3,
-          "max": 3,
-          "note": "1=Simplistic, 2=Moderate, 3=Elevated"
-        },
-        "richness_range": {
-          "min": 2,
-          "max": 4
-        },
-        "cleanup_range": {
-          "min": 1,
-          "max": 5
-        }
-      },
-      "diet_preferences": [],
-      "cooking_style": {
-        "preferred_tools": [],
-        "avoid_tools": [],
-        "preferred_methods": [
-          "Air-Fried",
-          "Blending",
-          "Microwaving",
-          "Sous Vide"
-        ],
-        "avoid_methods": [
-          "Braising",
-          "Slow-Cooked",
-          "Deep-Fried"
-        ]
-      },
-      "ingredient_logic": {
-        "staples": [
-          "Xanthan Gum",
-          "Agar Agar",
-          "Lecithin",
-          "Citric Acid"
-        ],
-        "banned_ingredients": [
-          "Volume measurements"
-        ],
-        "low_carb_strategy": "Structural mimicry using hydrocolloids and fibers (psyllium, xanthan) to replicate carb textures."
-      },
-      "instruction_style": {
-        "tone": "Clinical, dry, exact.",
-        "example_phrase": "Maintain water bath at exactly 62.5\u00b0C for 45 minutes."
-      }
-    },
-    {
-      "id": "low_carb_chef",
-      "name": "The Low Carb Chef",
-      "archetype": "The Bio-Hacker",
-      "description": "A health-focused chef who prioritizes nutrient density and stable blood sugar. Views food primarily as high-quality fuel.",
-      "constraints": {
-        "taste_range": {
-          "min": 3,
-          "max": 5
-        },
-        "speed_range": {
-          "min": 2,
-          "max": 4
-        },
-        "complexity_range": {
-          "min": 2,
-          "max": 3,
-          "note": "1=Simplistic, 2=Moderate, 3=Elevated"
-        },
-        "richness_range": {
-          "min": 1,
-          "max": 4
-        },
-        "cleanup_range": {
-          "min": 2,
-          "max": 4
-        }
-      },
-      "diet_preferences": [],
-      "cooking_style": {
-        "preferred_tools": [],
-        "avoid_tools": [],
-        "preferred_methods": [
-          "Air-Fried",
-          "Blending",
-          "Microwaving"
-        ],
-        "avoid_methods": [
-          "Braising",
-          "Slow-Cooked",
-          "Deep-Fried"
-        ]
-      },
-      "ingredient_logic": {
-        "staples": [
-          "Almond Flour",
-          "Cauliflower",
-          "Zucchini",
-          "Avocado",
-          "Coconut Oil"
-        ],
-        "banned_ingredients": [
-          "Sugar",
-          "White Flour",
-          "Seed Oils"
-        ],
-        "low_carb_strategy": "Substitution experts (Almond flour, cauliflower rice, zucchini noodles)."
-      },
-      "instruction_style": {
-        "tone": "Encouraging, informative, focuses on macros.",
-        "example_phrase": "This swap saves you 40g of carbs while keeping you in ketosis."
-      }
-    },
-    {
-      "id": "speezy_gonzales",
-      "name": "Speezy Gonzales",
-      "archetype": "The Shortcut King",
-      "description": "Efficiency over everything. If it can be done in 15 minutes with 90% of the taste, that's a win. Embraces technology to save time.",
-      "constraints": {
-        "taste_range": {
-          "min": 3,
-          "max": 5
-        },
-        "speed_range": {
-          "min": 4,
-          "max": 5
-        },
-        "complexity_range": {
-          "min": 1,
-          "max": 2,
-          "note": "1=Simplistic, 2=Moderate, 3=Elevated"
-        },
-        "richness_range": {
-          "min": 1,
-          "max": 5
-        },
-        "cleanup_range": {
-          "min": 1,
-          "max": 2
-        }
-      },
-      "diet_preferences": [],
-      "cooking_style": {
-        "preferred_tools": [],
-        "avoid_tools": [],
-        "preferred_methods": [
-          "Air-Fried",
-          "Microwaving"
-        ],
-        "avoid_methods": [
-          "Braising",
-          "Slow-Cooked"
-        ]
-      },
-      "ingredient_logic": {
-        "staples": [
-          "Pre-cut Veggies",
-          "Rotisserie Chicken",
-          "Jarred Salsa",
-          "Cheese slices"
-        ],
-        "banned_ingredients": [
-          "Anything requiring marinating"
-        ],
-        "low_carb_strategy": "Simplicity. Don't bake fake bread; just use a lettuce wrap or eat from a bowl."
-      },
-      "instruction_style": {
-        "tone": "Casual, urgent, brotherly, slangy.",
-        "example_phrase": "Toss it in the air fryer, 10 mins, boom. Dinner served."
-      }
-    }
-  ]
+    ]
 }

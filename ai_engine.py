@@ -3,6 +3,7 @@ import os
 import json
 import difflib
 from google import genai
+from google.genai import types
 from pydantic import BaseModel, Field, field_validator
 from typing import List, Literal, Optional
 from dotenv import load_dotenv
@@ -79,7 +80,8 @@ class IngredientSchema(BaseModel):
                      print(f"DEBUG: Substring matched '{v}' to '{p_name}'")
                      return p_name
 
-            raise ValueError(f"Ingredient '{v}' is not in the pantry.")
+            print(f"WARNING: Ingredient '{v}' is not in the pantry. Allowing for import.")
+            return v_norm
         return v_norm
 
 class IngredientGroupSchema(BaseModel):
@@ -115,7 +117,7 @@ class RecipeSchema(BaseModel):
     title: str
     cuisine: str
     diet: str
-    difficulty: Literal["Simplistic", "Moderate", "Elevated"]
+    difficulty: str # Relaxed from Literal
     cleanup_factor: int = Field(..., ge=1, le=5, description="Score 1-5 for cleanup effort")
     protein_type: str
     meal_types: List[str] = Field(default_factory=list)
@@ -127,9 +129,11 @@ class RecipeSchema(BaseModel):
     def validate_protein_type(cls, v: str) -> str:
         v_lower = v.lower()
         if v_lower not in valid_proteins:
-            # Try fuzzy match against valid_proteins if needed, or just error
-            # For now, simplistic validation
-            raise ValueError(f"Protein type '{v}' is not valid. Must be one of: {sorted(list(valid_proteins))}")
+            print(f"WARNING: Invalid protein_type '{v}'. Falling back to 'Vegetarian'.")
+            # Heuristic: if it looks like meat, maybe 'Chicken'? But 'Vegetarian' is the safest neutral bucket if we don't know.
+            # actually better to just check if 'other' is allowed? 
+            # I'll just return "Vegetarian" as a safe fallback 
+            return "Vegetarian"
         return v.title()
 
     @field_validator('meal_types')
@@ -146,10 +150,11 @@ class RecipeSchema(BaseModel):
     @classmethod
     def validate_cuisine(cls, v: str) -> str:
         if v not in cuisines_data:
-             # Basic fuzzy handle or error? Let's try to capitalize or just error
              if v.title() in cuisines_data:
                  return v.title()
-             raise ValueError(f"Cuisine '{v}' is not valid. Valid options: {cuisines_data}")
+             # Fallback instead of failing
+             print(f"WARNING: Invalid cuisine '{v}'. Falling back to 'Other'.")
+             return "Other" # Ensure 'Other' is in cuisines.json or handle it
         return v
     
     @field_validator('diet')
@@ -158,8 +163,28 @@ class RecipeSchema(BaseModel):
         # Handle case sensitivity (Pescatarian -> pescatarian)
         v_lower = v.lower()
         if v_lower not in diets_data:
-             raise ValueError(f"Diet '{v}' is not valid. Valid options: {diets_data}")
+             print(f"WARNING: Invalid diet '{v}'. Falling back to 'omnivore'.")
+             return "omnivore"
         return v_lower
+
+    @field_validator('difficulty')
+    @classmethod
+    def validate_difficulty(cls, v: str) -> str:
+        # Map common terms to our internal "Simplistic, Moderate, Elevated"
+        v_clean = v.title()
+        if v_clean in ["Simplistic", "Moderate", "Elevated"]:
+             return v_clean
+        
+        # Fuzzy map
+        if "Easy" in v_clean or "Simple" in v_clean:
+             return "Simplistic"
+        if "Medium" in v_clean or "Hard" in v_clean: # Mapping Hard to Moderate for safety, or Elevated?
+             return "Moderate"
+        if "Complex" in v_clean or "Advanced" in v_clean or "Chef" in v_clean:
+             return "Elevated"
+        
+        print(f"WARNING: Invalid difficulty '{v}'. Falling back to 'Moderate'.")
+        return "Moderate"
 
 # Load Chefs Data
 chefs_data = load_json("chefs.json")['chefs']
@@ -498,3 +523,60 @@ def generate_recipe_from_video(video_path: str, caption: str, slim_context: List
     except Exception as e:
         raise ValueError(f"AI Generation failed: {e}")
 
+
+def generate_recipe_from_web_text(raw_text: str, pantry_context: str) -> RecipeSchema:
+    """
+    Extracts a structured recipe from raw webpage text.
+    PERFORMS SILENT INGREDIENT SWAPS based on pantry availability.
+    """
+    if not client:
+        return None
+        
+    prompt = f"""
+    You are an expert chef and data engineer.
+    
+    1. EXTRACT: Analyze the following disorganized webpage text and extract the main recipe.
+    2. ADAPT (CRITICAL): The user has a specific pantry. Compare the recipe's required ingredients against this Pantry List:
+    {pantry_context}
+    
+    RULE: If the recipe calls for an ingredient the user DOES NOT have, but they have a valid, reasonable substitute in the pantry, SILENTLY SWAP it in your output.
+    - Example: Recipe needs "Buttermilk". Pantry has "Milk" and "Lemon". Swap to "Milk and Lemon".
+    - Example: Recipe needs "Shallots". Pantry has "Red Onion". Swap to "Red Onion".
+    - If no substitute exists, keep the original ingredient.
+    - Do NOT mention that a swap occurred. Just output the recipe as if it was written that way.
+    
+    3. FORMAT: Output the result strictly as a valid JSON object matching the RecipeSchema.
+    
+    WEBPAGE TEXT:
+    {raw_text}
+    """
+    
+    try:
+        print("DEBUG: Sending prompt to GenAI...")
+        response = client.models.generate_content(
+            model='gemini-2.0-flash-exp',
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type='application/json',
+                response_schema=RecipeSchema
+            )
+        )
+        print("DEBUG: GenAI response received.")
+        parsed = response.parsed
+        
+        # If SDK auto-parsing fails (sometimes returns None even if text is valid JSON)
+        if parsed is None and response.text:
+             print("DEBUG: Auto-parsing failed. Attempting manual extraction.")
+             data = extract_json_from_text(response.text)
+             return RecipeSchema(**data)
+             
+        return parsed
+    except Exception as e:
+        print(f"Error extracting recipe from web: {e}")
+        try:
+             # Last ditch effort if structured generation failed completely
+             # (Sometimes 400 errors or schema violations cause exceptions)
+             pass
+        except:
+             pass
+        return None

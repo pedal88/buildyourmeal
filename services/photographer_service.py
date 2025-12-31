@@ -1,3 +1,4 @@
+import requests
 import os
 import json
 from google import genai
@@ -30,12 +31,23 @@ def generate_visual_prompt(recipe_text: str, ingredients_list: str = None) -> st
     if ingredients_list:
         ingredients_context = f"\nStats: CRITICAL - The following ingredients MUST be visible: {ingredients_list}\n"
     
+    style_guide = """
+    STYLE GUIDELINE:
+    - Vibe: Professional, High-End, Cookbook.
+    - Description: Hyper-realistic photography with perfect studio lighting. The ingredient is the hero.
+    - Constraint: Isolated on a pure white background.
+    - Output Format: Write a single, concise image generation prompt. Do not write a list.
+    """
+    
     full_prompt = f"""
     {config['system_prompt']}
+    {style_guide}
     {ingredients_context}
     
-    RECIPE TO ANALYZE:
+    RECIPE / IDEA TO ANALYZE:
     {recipe_text}
+    
+    Task: Convert the above idea into a professional image generation prompt following the style guideline.
     """
     
     response = client.models.generate_content(
@@ -106,3 +118,75 @@ def generate_actual_image(visual_prompt: str) -> Image.Image:
     except Exception as e:
         print(f"Error generating image: {e}")
         raise e
+
+def generate_image_variation(image_bytes: bytes, fixed_prompt: str) -> Image.Image:
+    """
+    Simulates an 'Image Variation' or 'Remix' by:
+    1. Using Gemini Vision to describe the input image content/subject.
+    2. combining that description with the 'fixed_prompt' (Enhancer).
+    3. Generating a entirely new image based on the combined prompt.
+    """
+    if not client:
+        raise Exception("Google API Key not configured")
+
+    # 1. Analyze the input image to get the core subject
+    vision_prompt = """
+    Describe the MAIN SUBJECT of this food image in one concise sentence. 
+    Focus only on the food items and key ingredients.
+    IMPORTANT: IGNORE any text, labels, logos, or watermarks superimposed on the image. Describe only the food itself as if the text wasn't there.
+    Example: 'A stack of pancakes with syrup' (even if the image says 'Good Morning' on it).
+    """
+    
+    try:
+        image = Image.open(BytesIO(image_bytes))
+        response = client.models.generate_content(
+            model='gemini-2.0-flash-exp',
+            contents=[vision_prompt, image]
+        )
+        subject_description = response.text.strip()
+        
+        # 2. Combine with Fixed Prompt (Enhancer)
+        # The fixed prompt provides the "Style", the vision provides the "Subject".
+        # We support a template format "[Subject]" to insert the description naturally.
+        if "[Subject]" in fixed_prompt:
+            final_prompt = fixed_prompt.replace("[Subject]", subject_description)
+        elif "[Ingredient Name]" in fixed_prompt:
+            final_prompt = fixed_prompt.replace("[Ingredient Name]", subject_description)
+        else:
+            final_prompt = f"Subject: {subject_description}. \nStyle & Execution: {fixed_prompt}"
+        
+        # 3. Generate
+        return generate_actual_image(final_prompt)
+
+    except Exception as e:
+        print(f"Error in variation generation: {e}")
+        raise e
+
+def process_external_image(image_url: str) -> Image.Image:
+    """
+    Downloads an image from a URL and "Re-Imagines" it using our style.
+    Returns: PIL Image object of the NEW AI generated image.
+    """
+    if not image_url:
+        return None
+        
+    try:
+        # 1. Download Content
+        response = requests.get(image_url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=10)
+        response.raise_for_status()
+        
+        image_bytes = response.content
+        
+        # 2. Re-Imagine (Use Cookbook Style)
+        # We reuse the generate_image_variation which specifically cleans up text and applies our style
+        config = load_photographer_config()
+        # "Cookbook Style" is not in config, so we use the best template we created for Studio
+        # Actually, let's reuse generate_image_variation directly with a strong fixed prompt
+        
+        cookbook_prompt = "A professional close-up food photography shot of [Ingredient Name]. Studio lighting, soft shadows, sharp focus, isolated on a pure white background. 8k resolution, highly detailed texture, appetizing."
+        
+        return generate_image_variation(image_bytes, cookbook_prompt)
+
+    except Exception as e:
+        print(f"Error processing external image: {e}")
+        return None # Fail gracefully (user gets no image or default)

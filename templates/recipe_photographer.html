@@ -1,0 +1,242 @@
+{% extends "base.html" %}
+
+{% block title %}Recipe Photographer - {{ recipe.title }}{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 py-8 lg:py-12">
+    <!-- Header -->
+    <div class="mb-8 flex items-center justify-between">
+        <div>
+            <h1 class="font-serif text-3xl font-bold text-slate-900">Recipe Photographer</h1>
+            <p class="text-slate-500">Create a professional food photography shot for "{{ recipe.title }}"</p>
+        </div>
+        <a href="{{ url_for('recipe_detail', recipe_id=recipe.id) }}"
+            class="text-sm font-medium text-slate-500 hover:text-slate-900">
+            Back to Recipe
+        </a>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+
+        <!-- Controls Column -->
+        <div class="space-y-8">
+
+            <!-- Step 1: Prompt Generation -->
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+                <div class="flex items-center gap-3 mb-4">
+                    <span
+                        class="flex items-center justify-center w-8 h-8 rounded-full bg-slate-900 text-white font-bold text-sm">1</span>
+                    <h2 class="text-lg font-bold text-slate-900">Visual Prompt</h2>
+                </div>
+
+                <p class="text-slate-500 text-sm mb-4">
+                    The AI will analyze the recipe ingredients and style to create a detailed photography prompt.
+                </p>
+
+                <div class="space-y-4">
+                    <button id="btn-generate-prompt" onclick="generatePrompt()"
+                        class="w-full flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-900 font-semibold py-3 px-4 rounded-xl transition-colors">
+                        <span>✨ Generate Prompt</span>
+                    </button>
+
+                    <div class="relative">
+                        <label for="prompt-text" class="sr-only">Prompt</label>
+                        <textarea id="prompt-text" rows="6"
+                            class="block w-full rounded-xl border-slate-200 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm font-mono text-slate-600 bg-slate-50"
+                            placeholder="Prompt will appear here..."></textarea>
+
+                        <!-- Loading Spinner Overlay -->
+                        <div id="prompt-loading"
+                            class="hidden absolute inset-0 bg-white/50 backdrop-blur-sm flex items-center justify-center rounded-xl">
+                            <div class="animate-spin text-orange-500">
+                                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                        stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor"
+                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                    </path>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 2: Image Generation -->
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 opacity-50 pointer-events-none transition-all duration-300"
+                id="step-2-container">
+                <div class="flex items-center gap-3 mb-4">
+                    <span
+                        class="flex items-center justify-center w-8 h-8 rounded-full bg-slate-900 text-white font-bold text-sm">2</span>
+                    <h2 class="text-lg font-bold text-slate-900">Studio Capture</h2>
+                </div>
+
+                <p class="text-slate-500 text-sm mb-4">
+                    Generate the final high-resolution image using the prompt above.
+                </p>
+
+                <button id="btn-generate-image" onclick="generateImage()"
+                    class="w-full flex items-center justify-center gap-2 bg-slate-900 hover:bg-orange-600 text-white font-semibold py-3 px-4 rounded-xl transition-all shadow-lg hover:shadow-orange-500/25">
+                    <span>📸 Generate Image</span>
+                </button>
+            </div>
+
+        </div>
+
+        <!-- Result Column -->
+        <div>
+            <div class="sticky top-8">
+                <div
+                    class="aspect-square w-full rounded-3xl overflow-hidden bg-slate-100 border border-slate-200 relative group">
+                    <img id="result-image" src="" alt="" class="hidden w-full h-full object-cover">
+
+                    <!-- Empty State -->
+                    <div id="image-placeholder"
+                        class="absolute inset-0 flex flex-col items-center justify-center text-slate-400">
+                        <svg class="w-16 h-16 mb-4 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z">
+                            </path>
+                        </svg>
+                        <p class="text-sm font-medium opacity-50">No image generated yet</p>
+                    </div>
+
+                    <!-- Loading State -->
+                    <div id="image-loading"
+                        class="hidden absolute inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center">
+                        <div class="text-center text-white">
+                            <div class="mb-4 text-4xl animate-bounce">👨‍🍳</div>
+                            <p class="font-bold">Developing...</p>
+                        </div>
+                    </div>
+
+                    <!-- Save Actions -->
+                    <div id="save-actions"
+                        class="hidden absolute bottom-0 inset-x-0 p-6 bg-gradient-to-t from-black/80 to-transparent flex justify-center gap-3">
+                        <button onclick="saveImage()"
+                            class="bg-white text-slate-900 hover:bg-orange-500 hover:text-white px-6 py-2 rounded-full font-bold shadow-lg transition-colors flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M5 13l4 4L19 7"></path>
+                            </svg>
+                            Save to Recipe
+                        </button>
+                        <button onclick="generateImage()"
+                            class="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-full font-medium backdrop-blur transition-colors">
+                            Try Again
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const RECIPE_ID = {{ recipe.id }};
+    let currentImageFilename = null;
+
+    async function generatePrompt() {
+        // UI State
+        const btn = document.getElementById('btn-generate-prompt');
+        const loader = document.getElementById('prompt-loading');
+        const textarea = document.getElementById('prompt-text');
+        const step2 = document.getElementById('step-2-container');
+
+        btn.disabled = true;
+        loader.classList.remove('hidden');
+
+        try {
+            const response = await fetch('/recipe-image-generation/prompt', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ recipe_id: RECIPE_ID })
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                textarea.value = data.prompt;
+                // Enable Step 2
+                step2.classList.remove('opacity-50', 'pointer-events-none');
+            } else {
+                alert('Error: ' + data.error);
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Failed to generate prompt.');
+        } finally {
+            btn.disabled = false;
+            loader.classList.add('hidden');
+        }
+    }
+
+    async function generateImage() {
+        const prompt = document.getElementById('prompt-text').value;
+        if (!prompt) return;
+
+        // UI State
+        const loader = document.getElementById('image-loading');
+        const resultImg = document.getElementById('result-image');
+        const placeholder = document.getElementById('image-placeholder');
+        const saveActions = document.getElementById('save-actions');
+
+        loader.classList.remove('hidden');
+        saveActions.classList.add('hidden');
+
+        try {
+            const response = await fetch('/recipe-image-generation/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    recipe_id: RECIPE_ID,
+                    prompt: prompt
+                })
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                currentImageFilename = data.filename;
+                resultImg.src = "/static/temp/" + data.filename;
+                resultImg.classList.remove('hidden');
+                placeholder.classList.add('hidden');
+                saveActions.classList.remove('hidden');
+            } else {
+                alert('Error: ' + data.error);
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Failed to generate image.');
+        } finally {
+            loader.classList.add('hidden');
+        }
+    }
+
+    async function saveImage() {
+        if (!currentImageFilename) return;
+
+        try {
+            const response = await fetch('/recipe-image-generation/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    recipe_id: RECIPE_ID,
+                    filename: currentImageFilename
+                })
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                window.location.href = "{{ url_for('recipe_detail', recipe_id=recipe.id) }}";
+            } else {
+                alert('Error saving: ' + data.error);
+            }
+        } catch (e) {
+            alert('Failed to save image.');
+        }
+    }
+</script>
+{% endblock %}

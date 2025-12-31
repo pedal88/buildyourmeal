@@ -1,277 +1,440 @@
 {% extends "base.html" %}
-{% import "components/typography.html" as type %}
 
-{% block title %}Photographer Studio - The AI Kitchen{% endblock %}
+{% block title %}Creative Matrix - Studio{% endblock %}
 
 {% block content %}
-<div class="bg-zinc-900 min-h-screen text-zinc-100 pb-24">
+<div class="bg-zinc-950 min-h-screen text-zinc-100 pb-24">
 
-    <!-- Studio Header -->
-    <div class="border-b border-zinc-800 bg-zinc-950 px-6 py-6">
-        <div class="mx-auto max-w-7xl flex items-center justify-between">
+    <!-- Header -->
+    <div class="border-b border-zinc-800 bg-zinc-900/50 px-8 py-6 backdrop-blur-md sticky top-0 z-40">
+        <div class="flex items-center justify-between max-w-[1920px] mx-auto">
             <div class="flex items-center gap-4">
                 <div
-                    class="h-12 w-12 rounded-full bg-indigo-500 flex items-center justify-center text-2xl shadow-lg shadow-indigo-500/20">
-                    📸
+                    class="h-10 w-10 rounded-xl bg-indigo-600 flex items-center justify-center text-xl shadow-lg shadow-indigo-600/20">
+                    💠
                 </div>
                 <div>
-                    <h1 class="text-xl font-bold text-white tracking-wide">Studio: {{ config.name }}</h1>
-                    <div class="flex items-center gap-3">
-                        <p class="text-xs text-zinc-400 uppercase tracking-widest">{{ config.role }}</p>
-                        {% if recipe_id %}
-                        <span class="px-2 py-0.5 rounded bg-zinc-800 text-[10px] text-zinc-400 border border-zinc-700">
-                            Recipe #{{ recipe_id }}
-                        </span>
-                        {% endif %}
-                    </div>
+                    <h1 class="text-xl font-bold text-white tracking-wide">Creative Matrix</h1>
+                    <p class="text-xs text-zinc-400 uppercase tracking-widest">3x3 Generation Pipeline</p>
                 </div>
             </div>
-
-            <div class="flex items-center gap-4">
-                {% if recipe_id %}
-                <a href="/recipe/{{ recipe_id }}"
-                    class="text-xs font-bold text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-                    </svg>
-                    Back to Recipe
+            <div class="flex gap-4">
+                <a href="/"
+                    class="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-sm font-medium transition-colors">
+                    Back to Home
                 </a>
-                {% endif %}
-
-                <div class="hidden md:block text-right">
-                    <span
-                        class="px-3 py-1 bg-zinc-800 rounded-full text-xs font-mono text-zinc-400 border border-zinc-700">
-                        Target: {{ config.target_model }}
-                    </span>
-                </div>
             </div>
         </div>
     </div>
 
-    <div class="mx-auto max-w-7xl px-6 py-12">
+    <!-- The Matrix -->
+    <div class="p-8 max-w-[1920px] mx-auto overflow-x-auto">
 
-        <!-- Main Workspace -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+        <!-- Grid Container: 5 columns (3 main + 2 actions) -->
+        <div class="grid grid-cols-[1fr_auto_1fr_auto_1fr] gap-6 min-w-[1200px]">
 
-            <!-- Left: The Concept (Input) -->
-            <div class="flex flex-col gap-6">
-                <div class="flex items-center gap-2 text-indigo-400">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
-                        </path>
-                    </svg>
-                    <h2 class="font-bold uppercase tracking-wider text-sm">1. The Concept</h2>
-                </div>
-
-                <form action="/studio" method="POST" enctype="multipart/form-data"
-                    class="flex-grow flex flex-col gap-6">
-                    <input type="hidden" name="recipe_id" value="{{ recipe_id if recipe_id }}">
-                    <input type="hidden" name="ingredients_list" value="{{ ingredients_list if ingredients_list }}">
-
-                    <!-- Option 1A: Text Input -->
-                    <div class="flex flex-col gap-3">
-                        <div class="flex items-center justify-between border-b border-zinc-800 pb-2">
-                            <h3 class="text-indigo-400 font-bold text-sm">1A. Text Recipe</h3>
-                        </div>
-                        <div id="content-text" class="flex-grow flex flex-col">
-                            <textarea name="recipe_text"
-                                class="w-full h-40 bg-zinc-800 border-zinc-700 rounded-xl p-4 text-zinc-300 focus:ring-indigo-500 focus:border-indigo-500 font-serif leading-relaxed resize-none shadow-inner text-sm"
-                                placeholder="Paste your full recipe here...">{{ recipe_text if recipe_text else '' }}</textarea>
-                        </div>
-                    </div>
-
-                    <div class="relative flex items-center py-2">
-                        <div class="flex-grow border-t border-zinc-800"></div>
-                        <span class="flex-shrink-0 mx-4 text-zinc-600 font-mono text-xs uppercase font-bold">OR</span>
-                        <div class="flex-grow border-t border-zinc-800"></div>
-                    </div>
-
-                    <!-- Option 1B: Image Input -->
-                    <div class="flex flex-col gap-3">
-                        <div class="flex items-center justify-between border-b border-zinc-800 pb-2">
-                            <h3 class="text-indigo-400 font-bold text-sm">1B. Reference Image</h3>
-                        </div>
-                        <div id="content-image"
-                            class="flex-grow flex flex-col items-center justify-center border-2 border-dashed border-zinc-700 rounded-xl bg-zinc-800/30 p-6 hover:bg-zinc-800/50 transition-colors cursor-pointer group relative overflow-hidden h-32">
-
-                            <input type="file" name="reference_image" id="file-input" accept="image/*"
-                                class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
-                                onchange="showPreview(this)">
-
-                            <!-- Placeholder State -->
-                            <div id="upload-placeholder"
-                                class="text-center space-y-2 pointer-events-none transition-opacity duration-300">
-                                <div
-                                    class="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center mx-auto text-lg group-hover:scale-110 transition-transform text-zinc-500 group-hover:text-indigo-400">
-                                    🖼️
-                                </div>
-                                <div>
-                                    <h3 class="font-bold text-zinc-300 text-xs">Upload Reference Image</h3>
-                                </div>
-                            </div>
-
-                            <!-- Preview State -->
-                            <div id="image-preview"
-                                class="hidden absolute inset-0 w-full h-full z-10 bg-zinc-900 pointer-events-none flex flex-col items-center justify-center">
-                                <img id="preview-img" src=""
-                                    class="w-full h-full object-contain p-2 opacity-70 group-hover:opacity-40 transition-opacity">
-                                <div
-                                    class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <span
-                                        class="bg-black/70 text-white px-3 py-1 rounded-full text-xs font-bold backdrop-blur-md">Replace</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <button type="submit"
-                        class="mt-auto w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-900/20 transition-all flex items-center justify-center gap-2">
-                        <span>✨</span> Generate
-                    </button>
-                </form>
-
-                <script>
-                    function showPreview(input) {
-                        console.log('File selection changed');
-                        const placeholder = document.getElementById('upload-placeholder');
-                        const preview = document.getElementById('image-preview');
-                        const previewImg = document.getElementById('preview-img');
-
-                        if (input.files && input.files[0]) {
-                            console.log('File found:', input.files[0].name);
-                            const reader = new FileReader();
-
-                            reader.onload = function (e) {
-                                console.log('File read successfully');
-                                previewImg.src = e.target.result;
-                                placeholder.classList.add('opacity-0');
-                                setTimeout(() => {
-                                    placeholder.classList.add('hidden');
-                                    preview.classList.remove('hidden');
-                                }, 300);
-                            }
-
-                            reader.readAsDataURL(input.files[0]);
-                        } else {
-                            console.log('No file found');
-                        }
-                    }
-                </script>
+            <!-- HEADERS -->
+            <div class="mb-4 flex items-center gap-2 text-indigo-400">
+                <span class="font-mono font-bold text-2xl opacity-50">A</span>
+                <h2 class="font-bold uppercase tracking-widest text-sm">The Source (Input)</h2>
+            </div>
+            <div></div> <!-- Space -->
+            <div class="mb-4 flex items-center gap-2 text-purple-400">
+                <span class="font-mono font-bold text-2xl opacity-50">B</span>
+                <h2 class="font-bold uppercase tracking-widest text-sm">The Logic (Prompt)</h2>
+            </div>
+            <div></div> <!-- Space -->
+            <div class="mb-4 flex items-center gap-2 text-green-400">
+                <span class="font-mono font-bold text-2xl opacity-50">C</span>
+                <h2 class="font-bold uppercase tracking-widest text-sm">The Result (Output)</h2>
             </div>
 
-            <!-- Right: The Visuals (Output) -->
-            <div class="flex flex-col gap-6">
-                <!-- Step 2: visual Prompt -->
-                <div class="flex items-center gap-2 text-green-400">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z">
-                        </path>
-                    </svg>
-                    <h2 class="font-bold uppercase tracking-wider text-sm">2. The Visual Prompt</h2>
-                </div>
+            <!-- === ROW 1: TEXT METHOD === -->
 
-                {% if prompt %}
-                <div class="bg-black/50 border border-zinc-700 rounded-xl p-6 relative group">
-                    <p class="font-mono text-xs text-zinc-400 leading-relaxed max-h-[200px] overflow-y-auto">
-                        {{ prompt }}
-                    </p>
-                    <!-- Copy Button -->
-                    <button onclick="navigator.clipboard.writeText(`{{ prompt }}`)"
-                        class="absolute top-4 right-4 text-zinc-500 hover:text-white transition-colors">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 012-2v-8a2 2 0 01-2-2h-8a2 2 0 01-2 2v8a2 2 0 012 2z">
-                            </path>
-                        </svg>
-                    </button>
-                </div>
-
-                <!-- Step 3: Snap -->
-                <div class="border-t border-zinc-800 pt-8 mt-4">
-                    <div class="flex items-center gap-2 text-pink-400 mb-4">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z">
-                            </path>
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                        </svg>
-                        <h2 class="font-bold uppercase tracking-wider text-sm">3. The Shot</h2>
-                    </div>
-
-                    <form action="/studio/snap" method="POST">
-                        <input type="hidden" name="visual_prompt" value="{{ prompt }}">
-                        <input type="hidden" name="recipe_text" value="{{ recipe_text }}">
-                        <input type="hidden" name="recipe_id" value="{{ recipe_id if recipe_id }}">
-                        <input type="hidden" name="ingredients_list" value="{{ ingredients_list if ingredients_list }}">
-                        <button type="submit"
-                            class="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-bold py-4 rounded-xl border border-zinc-600 transition-all flex items-center justify-center gap-3 group">
-                            <span class="group-hover:scale-110 transition-transform">📸</span>
-                            Generate with {{ config.target_model }}
-                        </button>
-                    </form>
-                </div>
-
-                {% else %}
-                <div
-                    class="h-64 border-2 border-dashed border-zinc-800 rounded-xl flex items-center justify-center text-zinc-600">
-                    <p>waiting for concept...</p>
-                </div>
-                {% endif %}
-
-            </div>
-        </div>
-
-        <!-- Result Overlay -->
-        {% if temp_image %}
-        <div class="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 backdrop-blur-sm"
-            id="resultOverlay">
+            <!-- A1: Input -->
             <div
-                class="relative max-w-4xl w-full bg-zinc-900 rounded-2xl overflow-hidden shadow-2xl border border-zinc-800">
-                <button onclick="document.getElementById('resultOverlay').remove()"
-                    class="absolute top-4 right-4 z-10 bg-black/50 hover:bg-black rounded-full p-2 text-white transition-colors">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                class="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-4 flex flex-col gap-2 h-64 group hover:border-indigo-500/30 transition-colors">
+                <div class="flex justify-between items-center text-xs text-zinc-500 font-mono uppercase">
+                    <span>1A. Raw Text</span>
+                </div>
+                <textarea id="text_a1"
+                    class="flex-grow w-full bg-transparent border-0 resize-none focus:ring-0 text-lg font-serif placeholder-zinc-700 text-white"
+                    placeholder="Type a raw idea here...&#10;e.g. 'A futuristic cheeseburger'"></textarea>
+            </div>
+
+            <!-- Action 1A -> 2A -->
+            <div class="flex items-center justify-center">
+                <button onclick="analyzeRow(1)" id="btn-analyze-1"
+                    class="w-12 h-12 bg-zinc-800 hover:bg-indigo-600 rounded-full border border-zinc-700 hover:border-indigo-400 flex items-center justify-center transition-all shadow-lg hover:scale-110 group active:scale-95">
+                    <svg class="w-5 h-5 text-zinc-400 group-hover:text-white transition-colors" fill="none"
+                        stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- B1: Prompt (2A) -->
+            <div
+                class="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-4 flex flex-col gap-2 h-64 hover:border-purple-500/30 transition-colors relative overflow-hidden">
+                <div class="absolute inset-0 bg-zinc-950/80 backdrop-blur-sm z-20 hidden items-center justify-center"
+                    id="loader_b1">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+                </div>
+                <div class="flex justify-between items-center text-xs text-zinc-500 font-mono uppercase">
+                    <span>2A. Prompt</span>
+                    <span class="text-purple-400">Text-to-Image</span>
+                </div>
+                <textarea id="prompt_b1"
+                    class="flex-grow w-full bg-transparent border-0 resize-none focus:ring-0 font-mono text-sm text-purple-200"
+                    placeholder="..."></textarea>
+            </div>
+
+            <!-- Action 2A -> 3A -->
+            <div class="flex items-center justify-center">
+                <button onclick="generateRow(1)" id="btn-generate-1"
+                    class="w-12 h-12 bg-zinc-800 hover:bg-green-600 rounded-full border border-zinc-700 hover:border-green-400 flex items-center justify-center transition-all shadow-lg hover:scale-110 group active:scale-95">
+                    <svg class="w-5 h-5 text-zinc-400 group-hover:text-white transition-colors" fill="none"
+                        stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z">
+                        </path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- C1: Output (3A) -->
+            <div class="bg-black border border-zinc-800 rounded-2xl overflow-hidden h-64 relative group">
+                <div class="absolute inset-0 flex items-center justify-center text-zinc-700 font-mono text-xs"
+                    id="placeholder_c1">
+
+                </div>
+                <div class="absolute inset-0 bg-black/80 z-20 hidden items-center justify-center" id="loader_c1">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
+                </div>
+                <img id="img_c1" src="" class="w-full h-full object-cover hidden transition-opacity duration-700">
+                <a id="dl_c1" href="#" download="render_1A.png"
+                    class="absolute top-2 right-2 bg-black/60 hover:bg-indigo-600 text-white p-2 rounded-lg backdrop-blur-md hidden hover:scale-105 transition-all z-30">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 16v1a3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                    </svg>
+                </a>
+            </div>
+
+            <!-- === SHARED ROW 2 & 3: IMAGE METHOD === -->
+
+            <!-- Shared Input (1B & 1C) -->
+            <div
+                class="row-span-2 bg-zinc-900/50 border border-zinc-800 rounded-2xl p-4 flex flex-col gap-2 group hover:border-indigo-500/30 transition-colors relative">
+                <div class="flex justify-between items-center text-xs text-zinc-500 font-mono uppercase">
+                    <span>1B & 1C. Image Source</span>
+                </div>
+
+                <div
+                    class="flex-grow flex items-center justify-center border-2 border-dashed border-zinc-800 rounded-xl relative hover:bg-zinc-800/50 transition-colors cursor-pointer overflow-hidden">
+                    <input type="file" id="file_shared" accept="image/*"
+                        class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
+                        onchange="previewFile(this, 'preview_shared')">
+                    <div class="text-center pointer-events-none" id="label_shared">
+                        <span class="text-4xl block mb-2">📷</span>
+                    </div>
+                    <img id="preview_shared"
+                        class="w-full h-full object-cover absolute inset-0 hidden pointer-events-none opacity-60">
+                </div>
+            </div>
+
+            <!-- SHARED ACTIONS (1B/1C -> 2B/2C/3B/3C) -->
+            <div class="row-span-2 flex flex-col items-center justify-center gap-6 py-4">
+
+                <!-- 1. Magic Button (All) -->
+                <button onclick="runMagicFlow()" id="btn-magic"
+                    class="w-16 h-16 bg-gradient-to-br from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 rounded-2xl border border-white/10 flex flex-col items-center justify-center transition-all shadow-xl shadow-indigo-900/50 hover:scale-105 hover:shadow-indigo-500/40 group active:scale-95 px-2 text-center z-10">
+                    <span class="text-2xl mb-1 group-hover:rotate-12 transition-transform">✨</span>
+                    <span class="text-[9px] font-bold text-white uppercase leading-tight">Magic<br>All</span>
+                </button>
+
+                <!-- 2. Analyze Only (2B Prompt) -->
+                <button onclick="analyzeRow(2)" id="btn-analyze-2"
+                    class="w-10 h-10 bg-zinc-800 hover:bg-indigo-600 rounded-full border border-zinc-700 hover:border-indigo-400 flex items-center justify-center transition-all shadow-lg hover:scale-110 group active:scale-95"
+                    title="Generate Prompt Only (2B)">
+                    <span class="text-xs font-mono font-bold text-zinc-400 group-hover:text-white">Txt</span>
+                </button>
+
+                <!-- 3. Remix Only (3C Image) -->
+                <button onclick="generateRow(3)" id="btn-analyze-3"
+                    class="w-10 h-10 bg-zinc-800 hover:bg-indigo-600 rounded-full border border-zinc-700 hover:border-indigo-400 flex items-center justify-center transition-all shadow-lg hover:scale-110 group active:scale-95"
+                    title="Generate Remix Image Step 3C">
+                    <svg class="w-4 h-4 text-zinc-400 group-hover:text-white transition-colors" fill="none"
+                        stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z">
                         </path>
                     </svg>
                 </button>
 
-                <div class="aspect-video w-full max-h-[60vh] bg-black flex items-center justify-center">
-                    <img src="{{ url_for('static', filename='temp/' + temp_image) }}" alt="Generated Food"
-                        class="max-h-full max-w-full object-contain shadow-2xl">
+            </div>
+
+            <!-- ROW 2: Logic & Output -->
+
+            <!-- B2: Prompt (2B) -->
+            <div
+                class="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-4 flex flex-col gap-2 h-64 hover:border-purple-500/30 transition-colors relative overflow-hidden">
+                <div class="absolute inset-0 bg-zinc-950/80 backdrop-blur-sm z-20 hidden items-center justify-center"
+                    id="loader_b2">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
                 </div>
 
-                <div class="p-6 flex items-center justify-between bg-zinc-900">
-                    <div>
-                        <h3 class="text-white font-bold">Image Generated</h3>
-                        <p class="text-xs text-zinc-400">Prompt: {{ prompt[:50] }}...</p>
-                    </div>
+                <div class="flex justify-between items-center text-xs text-zinc-500 font-mono uppercase">
+                    <span>2B. Analysis</span>
+                    <span class="text-purple-400">Gemini Vision</span>
+                </div>
+                <textarea id="prompt_b2"
+                    class="flex-grow w-full bg-transparent border-0 resize-none focus:ring-0 font-mono text-sm text-purple-200"
+                    placeholder="..."></textarea>
+            </div>
 
-                    <div class="flex gap-4">
-                        {% if recipe_id %}
-                        <form action="/studio/save" method="POST">
-                            <input type="hidden" name="filename" value="{{ temp_image }}">
-                            <input type="hidden" name="recipe_id" value="{{ recipe_id }}">
-                            <button type="submit"
-                                class="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold text-sm transition-colors flex items-center gap-2">
-                                <span>💾</span> Save to Recipe
-                            </button>
-                        </form>
-                        {% endif %}
+            <!-- Action 2B -> 3B -->
+            <div class="flex items-center justify-center">
+                <button onclick="generateRow(2)" id="btn-generate-2"
+                    class="w-12 h-12 bg-zinc-800 hover:bg-green-600 rounded-full border border-zinc-700 hover:border-green-400 flex items-center justify-center transition-all shadow-lg hover:scale-110 group active:scale-95">
+                    <svg class="w-5 h-5 text-zinc-400 group-hover:text-white transition-colors" fill="none"
+                        stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z">
+                        </path>
+                    </svg>
+                </button>
+            </div>
 
-                        <a href="{{ url_for('static', filename='temp/' + temp_image) }}" download="food_shot.png"
-                            class="px-6 py-2 bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg font-bold text-sm transition-colors">
-                            Download PNG
-                        </a>
-                    </div>
+            <!-- C2: Output (3B) -->
+            <div class="bg-black border border-zinc-800 rounded-2xl overflow-hidden h-64 relative group">
+                <div class="absolute inset-0 flex items-center justify-center text-zinc-700 font-mono text-xs"
+                    id="placeholder_c2">
+
+                </div>
+                <div class="absolute inset-0 bg-black/80 z-20 hidden items-center justify-center" id="loader_c2">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
+                </div>
+                <img id="img_c2" src="" class="w-full h-full object-cover hidden">
+                <a id="dl_c2" href="#" download="render_1B.png"
+                    class="absolute top-2 right-2 bg-black/60 hover:bg-indigo-600 text-white p-2 rounded-lg backdrop-blur-md hidden hover:scale-105 transition-all z-30">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 16v1a3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                    </svg>
+                </a>
+            </div>
+
+            <!-- ROW 3: Logic & Output -->
+
+            <!-- B3: Prompt (Passed Through) -->
+            <div
+                class="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-4 flex flex-col gap-2 h-64 relative opacity-60">
+
+                <div class="flex justify-between items-center text-xs text-zinc-500 font-mono uppercase">
+                    <span>2C. Fixed Prompt</span>
+                </div>
+                <textarea id="prompt_b3" readonly
+                    class="flex-grow w-full bg-transparent border-0 resize-none focus:ring-0 font-mono text-sm text-zinc-500 cursor-not-allowed">A professional close-up food photography shot of [Ingredient Name]. Studio lighting, soft shadows, sharp focus, isolated on a pure white background. 8k resolution, highly detailed texture, appetizing.</textarea>
+
+                <div
+                    class="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity bg-black/50 backdrop-blur-sm rounded-2xl">
+                    <span class="text-xs font-mono text-white">Pass-through</span>
                 </div>
             </div>
-        </div>
-        {% endif %}
 
+            <!-- Action 2C (Spacer - Arrow) -->
+            <div class="flex items-center justify-center opacity-30">
+                <svg class="w-6 h-6 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3">
+                    </path>
+                </svg>
+            </div>
+
+            <!-- C3: Output (3C) -->
+            <div class="bg-black border border-zinc-800 rounded-2xl overflow-hidden h-64 relative group">
+                <div class="absolute inset-0 flex items-center justify-center text-zinc-700 font-mono text-xs"
+                    id="placeholder_c3">
+
+                </div>
+                <div class="absolute inset-0 bg-black/80 z-20 hidden items-center justify-center" id="loader_c3">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
+                </div>
+                <!-- 1C generates image in 3C -->
+                <img id="img_c3" src="" class="w-full h-full object-cover hidden">
+                <a id="dl_c3" href="#" download="render_1C.png"
+                    class="absolute top-2 right-2 bg-black/60 hover:bg-indigo-600 text-white p-2 rounded-lg backdrop-blur-md hidden hover:scale-105 transition-all z-30">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 16v1a3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                    </svg>
+                </a>
+            </div>
+
+        </div>
     </div>
 </div>
+
+<script>
+    // --- File Preview Logic ---
+    function previewFile(input, imgId) {
+        const file = input.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const img = document.getElementById(imgId);
+                img.src = e.target.result;
+                img.classList.remove('hidden');
+            }
+            reader.readAsDataURL(file);
+        }
+    }
+
+    // --- State Management ---
+    function toggleLoader(id, show) {
+        const el = document.getElementById(id);
+        if (show) el.classList.replace('hidden', 'flex');
+        else el.classList.replace('flex', 'hidden');
+    }
+
+    function setOutputImage(imgId, url, dlId) {
+        const img = document.getElementById(imgId);
+        img.src = url;
+        img.classList.remove('hidden');
+
+        // Show DL button
+        if (dlId) {
+            const btn = document.getElementById(dlId);
+            btn.href = url;
+            btn.classList.remove('hidden');
+        }
+    }
+
+    // --- MAGIC Automated Flow ---
+
+    async function runMagicFlow() {
+        const btn = document.getElementById('btn-magic');
+        btn.classList.add('animate-pulse', 'pointer-events-none', 'ring-2', 'ring-indigo-500');
+
+        try {
+            // Step 1: Analyze 2B
+            // Reuse logic but wait for it
+            const successA = await analyzeRow(2, true); // true = silent mode (no loader toggle or let analyzeRow handle it)
+
+            if (successA) {
+                // Step 2: Generate 3B (2B Prompt -> 3B Image)
+                // AND Generate 3C (1B Image + Fixed Prompt -> 3C Image)
+
+                // We can run these in parallel
+                const p1 = generateRow(2, true);
+                const p2 = generateRow(3, true);
+
+                await Promise.all([p1, p2]);
+            }
+        } catch (e) {
+            console.error("Magic flow error:", e);
+        } finally {
+            btn.classList.remove('animate-pulse', 'pointer-events-none', 'ring-2', 'ring-indigo-500');
+        }
+    }
+
+
+    // --- Row Actions ---
+
+    async function analyzeRow(rowNum, keepUI = false) {
+        const btnId = `btn-analyze-${rowNum}`;
+        const btn = document.getElementById(btnId);
+        if (!keepUI && btn) btn.classList.add('animate-pulse', 'pointer-events-none');
+
+        toggleLoader(`loader_b${rowNum}`, true);
+
+        const formData = new FormData();
+        let success = false;
+
+        if (rowNum === 1) {
+            formData.append('text_a1', document.getElementById('text_a1').value);
+        } else if (rowNum === 2) {
+            // Uses Shared Input
+            const file = document.getElementById('file_shared').files[0];
+            if (file) {
+                formData.append('image_a2', file);
+            } else {
+                alert("Please upload an image first.");
+                toggleLoader(`loader_b${rowNum}`, false);
+                if (!keepUI && btn) btn.classList.remove('animate-pulse', 'pointer-events-none');
+                return false;
+            }
+        }
+
+        try {
+            const response = await fetch('/studio/analyze', { method: 'POST', body: formData });
+            const data = await response.json();
+
+            if (data.success) {
+                if (rowNum === 1) document.getElementById('prompt_b1').value = data.row1;
+                if (rowNum === 2) document.getElementById('prompt_b2').value = data.row2;
+                success = true;
+            } else {
+                alert("Analysis failed: " + data.error);
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            if (!keepUI && btn) btn.classList.remove('animate-pulse', 'pointer-events-none');
+            toggleLoader(`loader_b${rowNum}`, false);
+        }
+        return success;
+    }
+
+    async function generateRow(rowNum, keepUI = false) {
+        let btnId;
+        if (rowNum === 1) btnId = 'btn-generate-1';
+        if (rowNum === 2) btnId = 'btn-generate-2';
+        if (rowNum === 3) btnId = 'btn-analyze-3';
+
+        const btn = document.getElementById(btnId);
+        if (!keepUI && btn) btn.classList.add('animate-pulse', 'pointer-events-none');
+
+        toggleLoader(`loader_c${rowNum}`, true);
+
+        const formData = new FormData();
+
+        if (rowNum === 1) {
+            formData.append('prompt_b1', document.getElementById('prompt_b1').value);
+        } else if (rowNum === 2) {
+            formData.append('prompt_b2', document.getElementById('prompt_b2').value);
+        } else if (rowNum === 3) {
+            // Uses Shared  Input
+            formData.append('prompt_b3', document.getElementById('prompt_b3').value);
+            const file = document.getElementById('file_shared').files[0];
+            if (file) formData.append('image_a3', file);
+            else {
+                alert("Please upload an image first.");
+                toggleLoader(`loader_c${rowNum}`, false);
+                if (!keepUI && btn) btn.classList.remove('animate-pulse', 'pointer-events-none');
+                return;
+            }
+        }
+
+        try {
+            const response = await fetch('/studio/generate', { method: 'POST', body: formData });
+            const data = await response.json();
+
+            if (data.success) {
+                if (rowNum === 1 && data.image_c1) setOutputImage('img_c1', data.image_c1, 'dl_c1');
+                if (rowNum === 2 && data.image_c2) setOutputImage('img_c2', data.image_c2, 'dl_c2');
+                if (rowNum === 3 && data.image_c3) setOutputImage('img_c3', data.image_c3, 'dl_c3');
+            } else {
+                alert("Generation failed: " + data.error);
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            if (!keepUI && btn) btn.classList.remove('animate-pulse', 'pointer-events-none');
+            toggleLoader(`loader_c${rowNum}`, false);
+        }
+    }
+
+</script>
 {% endblock %}

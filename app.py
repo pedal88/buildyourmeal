@@ -4,8 +4,9 @@ from flask import Flask, render_template, request, redirect, url_for, flash, jso
 from database.models import db, Ingredient, Recipe, Instruction, RecipeIngredient
 from sqlalchemy import or_
 from services.pantry_service import get_slim_pantry_context
-from ai_engine import generate_recipe_ai, get_pantry_id, chefs_data
-from services.photographer_service import generate_visual_prompt, generate_actual_image, generate_visual_prompt_from_image, load_photographer_config
+from ai_engine import generate_recipe_ai, get_pantry_id, chefs_data, generate_recipe_from_web_text
+from services.photographer_service import generate_visual_prompt, generate_actual_image, generate_visual_prompt_from_image, load_photographer_config, generate_image_variation, process_external_image
+from services.web_scraper_service import WebScraper
 from utils.image_helpers import generate_ingredient_placeholder
 import base64
 from io import BytesIO
@@ -196,6 +197,189 @@ def save_recipe_image():
         flash(f"Error saving image: {str(e)}", "error")
         return redirect(url_for('index')) 
 
+
+@app.route('/studio/analyze', methods=['POST'])
+def studio_analyze():
+    try:
+        # A1: Text Input -> Generate Prompt
+        text_a1 = request.form.get('text_a1', '')
+        prompt_b1 = ""
+        if text_a1:
+            prompt_b1 = generate_visual_prompt(text_a1)
+        
+        # A2: Image Input (for Image-to-Prompt)
+        prompt_a2 = ""
+        if 'image_a2' in request.files and request.files['image_a2'].filename != '':
+            file = request.files['image_a2']
+            image_bytes = file.read()
+            prompt_a2 = generate_visual_prompt_from_image(image_bytes)
+            
+        # A3: Image Input (for Remix) - We just confirm it's valid/received, 
+        # but the prompt is fixed.
+        # Maybe we could do a quick check? 
+        
+        # Get Fixed Prompt from Config
+        config = load_photographer_config()
+        # Create a specific "Enhancer" prompt or just use the system prompt
+        # User requested: "Cookbook Style" with Template
+        prompt_b3 = "A professional close-up food photography shot of [Ingredient Name]. Studio lighting, soft shadows, sharp focus, isolated on a pure white background. 8k resolution, highly detailed texture, appetizing."
+
+        return jsonify({
+            'success': True,
+            'row1': prompt_b1, 
+            'row2': prompt_a2,
+            'row3': prompt_b3
+        })
+
+    except Exception as e:
+        print(f"Analyze Error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/studio/generate', methods=['POST'])
+def studio_generate():
+    try:
+        # B1: Text-to-Image
+        prompt_b1 = request.form.get('prompt_b1')
+        img_c1_url = None
+        if prompt_b1:
+            img = generate_actual_image(prompt_b1)
+            filename = f"studio_a_{uuid.uuid4().hex}.png"
+            img.save(os.path.join(app.root_path, 'static', 'temp', filename))
+            img_c1_url = url_for('static', filename=f'temp/{filename}')
+
+        # B2: Image-to-Prompt-to-Image
+        prompt_b2 = request.form.get('prompt_b2')
+        img_c2_url = None
+        if prompt_b2:
+            img = generate_actual_image(prompt_b2)
+            filename = f"studio_b_{uuid.uuid4().hex}.png"
+            img.save(os.path.join(app.root_path, 'static', 'temp', filename))
+            img_c2_url = url_for('static', filename=f'temp/{filename}')
+            
+        # B3: Mix (Image + Fixed Prompt)
+        prompt_b3 = request.form.get('prompt_b3')
+        img_c3_url = None
+        
+        # We need the image from A3 again. 
+        # NOTE: Ideally we would have saved it to a temp path in /analyze and passed the path.
+        # But for this stateless implementation, we expect the frontend to re-send the file 
+        # OR we rely on the file being present in request.files if the user selected it.
+        if 'image_a3' in request.files and request.files['image_a3'].filename != '' and prompt_b3:
+            file = request.files['image_a3']
+            image_bytes = file.read()
+            # Variation Generation
+            img = generate_image_variation(image_bytes, prompt_b3)
+            filename = f"studio_c_{uuid.uuid4().hex}.png"
+            img.save(os.path.join(app.root_path, 'static', 'temp', filename))
+            img_c3_url = url_for('static', filename=f'temp/{filename}')
+
+        return jsonify({
+            'success': True,
+            'image_c1': img_c1_url,
+            'image_c2': img_c2_url,
+            'image_c3': img_c3_url
+        })
+
+    except Exception as e:
+        print(f"Generate Error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# RECIPE IMAGE GENERATION FLOW
+@app.route('/recipe-image-generation')
+def recipe_image_generation_view():
+    recipe_id = request.args.get('recipe_id')
+    if not recipe_id:
+        flash("Recipe ID required", "error")
+        return redirect(url_for('index'))
+    
+    recipe = db.session.get(Recipe, int(recipe_id))
+    if not recipe:
+        flash("Recipe not found", "error")
+        return redirect(url_for('index'))
+        
+    return render_template('recipe_photographer.html', recipe=recipe)
+
+@app.route('/recipe-image-generation/prompt', methods=['POST'])
+def recipe_image_generation_prompt():
+    try:
+        data = request.get_json()
+        recipe_id = data.get('recipe_id')
+        recipe = db.session.get(Recipe, int(recipe_id))
+        
+        if not recipe:
+            return jsonify({'success': False, 'error': 'Recipe not found'})
+            
+        # Reconstruct Context for AI
+        ingredients_list = ", ".join([ri.ingredient.name for ri in recipe.ingredients])
+        
+        recipe_text = f"Title: {recipe.title}\n"
+        recipe_text += f"Cuisine: {recipe.cuisine}\n"
+        recipe_text += f"Diet: {recipe.diet}\n"
+        
+        # Generate Prompt
+        prompt = generate_visual_prompt(recipe_text, ingredients_list)
+        
+        return jsonify({'success': True, 'prompt': prompt})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/recipe-image-generation/generate', methods=['POST'])
+def recipe_image_generation_create():
+    try:
+        data = request.get_json()
+        prompt = data.get('prompt')
+        
+        if not prompt:
+            return jsonify({'success': False, 'error': 'Prompt required'})
+            
+        # Generate Image
+        img = generate_actual_image(prompt)
+        
+        # Save to Temp
+        filename = f"temp_{uuid.uuid4().hex}.png"
+        temp_path = os.path.join(app.root_path, 'static', 'temp', filename)
+        
+        # Ensure temp dir exists
+        os.makedirs(os.path.dirname(temp_path), exist_ok=True)
+        
+        img.save(temp_path, format="PNG")
+        
+        return jsonify({'success': True, 'filename': filename})
+        
+    except Exception as e:
+        print(f"Gen Error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/recipe-image-generation/save', methods=['POST'])
+def recipe_image_generation_save():
+    try:
+        data = request.get_json()
+        filename = data.get('filename')
+        recipe_id = data.get('recipe_id')
+        
+        if not filename or not recipe_id:
+            return jsonify({'success': False, 'error': 'Missing data'})
+            
+        # Move file
+        src = os.path.join(app.root_path, 'static', 'temp', filename)
+        new_filename = f"recipe_{recipe_id}_{uuid.uuid4().hex[:8]}.png"
+        dst = os.path.join(app.root_path, 'static', 'recipes', new_filename)
+        
+        if os.path.exists(src):
+            shutil.move(src, dst)
+            
+            # Update DB
+            recipe = db.session.get(Recipe, int(recipe_id))
+            recipe.image_filename = new_filename
+            db.session.commit()
+            
+            return jsonify({'success': True})
+        else:
+            return jsonify({'success': False, 'error': 'Temp file not found'})
+            
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -506,6 +690,109 @@ def toggle_basic_ingredient(id):
         'id': ing.id,
         'name': ing.name
     })
+
+@app.route('/generate/web', methods=['POST'])
+def generate_web_recipe():
+    blog_url = request.form.get('blog_url')
+    
+    if not blog_url:
+        return redirect(url_for('home')) # Or show error
+    
+    try:
+        # 1. Scrape Content
+        scraper = WebScraper()
+        scraped_data = scraper.scrape_url(blog_url)
+        
+        if not scraped_data or not scraped_data['text']:
+            return "Could not extract text from this URL", 400
+            
+        # 2. Extract Recipe with Silent Swaps
+        slim_context = get_slim_pantry_context()
+        try:
+             import json
+             pantry_str = json.dumps(slim_context)
+        except:
+             pantry_str = "[]"
+             
+        recipe_data = generate_recipe_from_web_text(scraped_data['text'], pantry_str)
+        
+        if not recipe_data:
+             return "AI could not extract a valid recipe from the page.", 400
+             
+        # 3. Process Image (Parallel-ish)
+        # We re-imagine the hero image from the blog
+        image_url = scraped_data.get('image_url')
+        print(f"Scraped Image URL: {image_url}")
+        
+        final_image_filename = None
+        if image_url:
+            try:
+                # Process external -> New AI Image
+                generated_pil = process_external_image(image_url)
+                if generated_pil:
+                     # Save it
+                     unique_filename = f"web_import_{uuid.uuid4()}.png"
+                     save_path = os.path.join(app.root_path, 'static', 'recipe_images', unique_filename)
+                     generated_pil.save(save_path)
+                     final_image_filename = unique_filename
+            except Exception as e:
+                print(f"Image processing failed: {e}")
+                # Continue without image
+        
+        # 4. Save to DB (Reusing existing logic logic would be better but simple copy for now)
+        with app.app_context():
+            new_recipe = Recipe(
+                title=recipe_data.title,
+                cuisine=recipe_data.cuisine,
+                diet=recipe_data.diet,
+                difficulty=recipe_data.difficulty,
+                cleanup_factor=recipe_data.cleanup_factor or 3,
+                protein_type=recipe_data.protein_type,
+                image_filename=final_image_filename,
+                meal_types=json.dumps(recipe_data.meal_types) if recipe_data.meal_types else "[]"
+            )
+            db.session.add(new_recipe)
+            db.session.flush()
+            
+            # Save Instructions
+            for phase_group in recipe_data.instructions:
+                instr = Instruction(
+                    recipe_id=new_recipe.id,
+                    step_number=phase_group.step_number,
+                    text=phase_group.text,
+                    phase=phase_group.phase
+                )
+                db.session.add(instr)
+
+            # Save Ingredients
+            for group in recipe_data.ingredient_groups:
+                for ing in group.ingredients:
+                     # Match to existing ingredients? or Create?
+                     # Simple logic: check existing name, else create
+                     db_ing = Ingredient.query.filter(Ingredient.name.ilike(ing.name)).first()
+                     if not db_ing:
+                         # Create new ingredient entry (auto-add to pantry? maybe not)
+                         # Need a dummy food_id since it's required and unique. Using UUID or "IMP-{randint}"
+                         dummy_id = f"IMP-{uuid.uuid4().hex[:6]}"
+                         db_ing = Ingredient(name=ing.name, food_id=dummy_id, main_category="Imported", default_unit=ing.unit)
+                         db.session.add(db_ing)
+                         db.session.flush()
+                     
+                     ri = RecipeIngredient(
+                         recipe_id=new_recipe.id,
+                         ingredient_id=db_ing.id,
+                         amount=ing.amount,
+                         unit=ing.unit,
+                         component=group.component
+                     )
+                     db.session.add(ri)
+            
+            db.session.commit()
+            return redirect(url_for('recipe_detail', recipe_id=new_recipe.id))
+
+    except Exception as e:
+        print(f"Web Import Error: {e}")
+        return f"Error processing web import: {e}", 500
 
 @app.route('/generate')
 def generate():

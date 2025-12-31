@@ -124,7 +124,7 @@
     data-range-min="{{ range_min }}" data-range-max="{{ range_max }}">
     <div class="flex justify-between mb-2">
         <label class="text-xs font-bold text-slate-500 uppercase">{{ label }}</label>
-        <span class="text-xs font-mono text-orange-600" id="{{ chef_id }}_{{ key }}_display">
+        <span class="text-xs font-mono text-slate-500" id="{{ chef_id }}_{{ key }}_display">
             {% if labels %}
             {{ labels[min_val-1] }} - {{ labels[max_val-1] }}
             {% else %}
@@ -163,26 +163,42 @@
             data-id="{{ chef.id }}">
 
             <!-- Header -->
-            <div class="flex justify-between items-start mb-6">
-                <div class="flex-grow mr-4">
-                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1">Display
-                        Name</label>
-                    <input type="text"
-                        class="chef-name text-2xl font-serif font-bold text-slate-900 w-full border-b border-transparent hover:border-slate-200 focus:border-orange-500 focus:outline-none bg-transparent transition-colors"
-                        value="{{ chef.name }}">
+            <div class="flex items-start mb-6 gap-6">
+                <!-- Image -->
+                <div class="flex-shrink-0">
+                    <div
+                        class="h-20 w-20 rounded-full bg-slate-100 ring-4 ring-white shadow-sm overflow-hidden flex items-center justify-center">
+                        {% if chef.image_filename %}
+                        <img src="{{ url_for('static', filename='chefs/' + chef.image_filename) }}"
+                            alt="{{ chef.name }}" class="h-full w-full object-cover">
+                        {% else %}
+                        <span class="text-3xl">👨‍🍳</span>
+                        {% endif %}
+                    </div>
                 </div>
-                <div class="text-right">
-                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1">Archetype</label>
-                    <input type="text"
-                        class="chef-archetype text-sm font-bold text-orange-600 w-full text-right border-b border-transparent hover:border-slate-200 focus:border-orange-500 focus:outline-none bg-transparent"
-                        value="{{ chef.archetype }}">
+
+                <div class="flex-grow grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1">Display
+                            Name</label>
+                        <input type="text"
+                            class="chef-name text-2xl font-serif font-bold text-slate-900 w-full border-b border-transparent hover:border-slate-200 focus:border-slate-500 focus:outline-none bg-transparent transition-colors"
+                            value="{{ chef.name }}">
+                    </div>
+                    <div class="text-left md:text-right">
+                        <label
+                            class="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1">Archetype</label>
+                        <input type="text"
+                            class="chef-archetype text-sm font-bold text-slate-500 w-full md:text-right border-b border-transparent hover:border-slate-200 focus:border-slate-500 focus:outline-none bg-transparent"
+                            value="{{ chef.archetype }}">
+                    </div>
                 </div>
             </div>
 
             <div class="mb-8">
                 <label class="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Description</label>
                 <textarea
-                    class="chef-description w-full text-slate-600 text-sm bg-slate-50 rounded-lg p-3 border border-slate-100 focus:border-orange-200 focus:outline-none resize-none h-20">{{ chef.description }}</textarea>
+                    class="chef-description w-full text-slate-600 text-sm bg-slate-50 rounded-lg p-3 border border-slate-100 focus:border-slate-300 focus:outline-none resize-none h-20">{{ chef.description }}</textarea>
             </div>
 
             <!-- Constraints (Sliders) -->
@@ -310,7 +326,7 @@
                     <label class="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Low Carb
                         Strategy</label>
                     <input type="text"
-                        class="chef-strategy w-full text-sm bg-slate-50 rounded-lg p-3 border border-slate-100 focus:border-orange-200 outline-none"
+                        class="chef-strategy w-full text-sm bg-slate-50 rounded-lg p-3 border border-slate-100 focus:border-slate-300 outline-none"
                         value="{{ chef.ingredient_logic.low_carb_strategy }}">
                 </div>
 
@@ -319,14 +335,14 @@
                         <label class="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Voice /
                             Tone</label>
                         <input type="text"
-                            class="chef-tone w-full text-sm bg-slate-50 rounded-lg p-3 border border-slate-100 focus:border-orange-200 outline-none"
+                            class="chef-tone w-full text-sm bg-slate-50 rounded-lg p-3 border border-slate-100 focus:border-slate-300 outline-none"
                             value="{{ chef.instruction_style.tone }}">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Example
                             Phrase</label>
                         <input type="text"
-                            class="chef-phrase w-full text-sm bg-slate-50 rounded-lg p-3 border border-slate-100 focus:border-orange-200 outline-none italic"
+                            class="chef-phrase w-full text-sm bg-slate-50 rounded-lg p-3 border border-slate-100 focus:border-slate-300 outline-none italic"
                             value="{{ chef.instruction_style.example_phrase }}">
                     </div>
                 </div>

@@ -3,7 +3,7 @@
 {% import "components/cards.html" as card %}
 
 {% block content %}
-<div class="relative overflow-hidden bg-slate-900 py-24 sm:py-32">
+<div class="relative overflow-hidden bg-slate-900 py-12 sm:py-16">
     <!-- Abstract Background -->
     <div
         class="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1556910103-1c02745a30bf?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80')] bg-cover bg-center opacity-10 mix-blend-overlay">
@@ -11,130 +11,157 @@
     <div class="absolute inset-0 bg-gradient-to-b from-slate-900/50 via-slate-900/80 to-slate-900"></div>
 
     <div class="relative mx-auto max-w-2xl px-6 lg:max-w-7xl lg:px-8 text-center">
-        <!-- Badge -->
-        <div class="mb-8 flex justify-center">
-            <span
-                class="inline-flex items-center gap-x-2 rounded-full bg-slate-800 px-4 py-1.5 text-sm font-medium text-orange-400 ring-1 ring-inset ring-orange-400/20">
-                <span class="relative flex h-2 w-2">
-                    <span
-                        class="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
-                    <span class="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
-                </span>
-                AI Chef Online • 100% Pantry Coverage
-            </span>
-        </div>
+        <!-- Badge Removed -->
 
         <!-- Headline -->
-        <h1 class="font-serif text-4xl font-bold tracking-tight text-white sm:text-6xl mb-6">
+        <h1 class="font-serif text-3xl font-bold tracking-tight text-white mb-8">
             What are we cooking today?
         </h1>
-        <p class="text-lg leading-8 text-slate-300 mb-10 max-w-xl mx-auto">
-            You have <b>609</b> ingredients ready in your pantry.
-            Just tell me what you're craving, and I'll handle the rest.
-        </p>
 
         <!-- Chef Selector -->
-        <div class="mb-6 flex justify-center gap-4">
+        <div class="mb-8 flex justify-center gap-2">
             {% for chef in chefs %}
             <div onclick="selectChef('{{ chef.id }}')" id="chef-{{ chef.id }}"
-                class="cursor-pointer group relative flex items-center gap-3 rounded-xl border border-slate-700 bg-slate-800/50 px-4 py-3 hover:bg-slate-800 hover:border-orange-500 transition-all duration-300 {% if loop.first %}ring-2 ring-orange-500 bg-slate-800{% endif %}">
-                <div class="h-10 w-10 rounded-full bg-slate-700 flex items-center justify-center text-xl">
-                    {% if chef.id == 'gourmet' %}👨‍🍳{% else %}🚀{% endif %}
+                class="cursor-pointer group relative flex flex-col items-center gap-1 rounded-lg border border-slate-700 bg-slate-800/50 px-3 py-2 w-24 hover:bg-slate-800 hover:border-slate-500 transition-all duration-300 {% if loop.first %}ring-1 ring-slate-500 bg-slate-800{% endif %}">
+                <div
+                    class="h-14 w-14 rounded-full bg-slate-700 flex items-center justify-center overflow-hidden ring-2 ring-slate-600 mb-1">
+                    {% if chef.image_filename %}
+                    <img src="{{ url_for('static', filename='chefs/' + chef.image_filename) }}" alt="{{ chef.name }}"
+                        class="h-full w-full object-cover">
+                    {% else %}
+                    <span class="text-xl">{% if chef.id == 'gourmet' %}👨‍🍳{% else %}🚀{% endif %}</span>
+                    {% endif %}
                 </div>
-                <div class="text-left">
-                    <p class="text-sm font-bold text-white group-hover:text-orange-400 transition-colors">{{ chef.name
+                <div class="text-center">
+                    <p
+                        class="text-[10px] font-bold text-white group-hover:text-slate-200 transition-colors leading-tight">
+                        {{ chef.name
                         }}</p>
-                    <p class="text-[10px] text-slate-400 uppercase tracking-wider">{{ chef.short_bio }}</p>
                 </div>
             </div>
             {% endfor %}
         </div>
 
-        <!-- Dynamic AI Prompt Input -->
-        <form action="/" method="POST" class="max-w-xl mx-auto relative group">
-            <input type="hidden" name="chef_id" id="chefInput" value="gourmet">
+        <!-- === INPUT TABS === -->
+        <div class="max-w-xl mx-auto mb-8" x-data="{ tab: 'describe' }">
 
-            <div
-                class="absolute -inset-1 bg-gradient-to-r from-orange-600 to-amber-600 rounded-lg blur opacity-25 group-hover:opacity-100 transition duration-1000 group-hover:duration-200">
-            </div>
-            <div class="relative flex bg-white rounded-lg p-1 shadow-2xl">
-                <input type="text" name="query" placeholder="e.g. 'Spicy pasta carbonara with bacon'..."
-                    class="block w-full rounded-md border-0 py-4 pl-6 pr-4 text-slate-900 ring-0 placeholder:text-slate-400 focus:ring-0 sm:text-lg sm:leading-6 focus:outline-none"
-                    autofocus required>
-                <button type="submit"
-                    class="flex-none rounded-md bg-slate-900 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-orange-600 transition-colors duration-200">
-                    Create
+            <!-- Tab Navigation -->
+            <div class="flex p-1 space-x-1 bg-slate-800/80 rounded-lg mb-4 backdrop-blur-sm border border-slate-700">
+                <button @click="tab = 'describe'"
+                    :class="tab === 'describe' ? 'bg-slate-700 text-white shadow' : 'text-slate-400 hover:text-white'"
+                    class="w-full py-2 text-xs font-medium leading-5 rounded-md transition-all focus:outline-none">
+                    Describe Idea
+                </button>
+                <button @click="tab = 'social'"
+                    :class="tab === 'social' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-indigo-400'"
+                    class="w-full py-2 text-xs font-medium leading-5 rounded-md transition-all focus:outline-none">
+                    TikTok / Reel
+                </button>
+                <button @click="tab = 'web'"
+                    :class="tab === 'web' ? 'bg-emerald-600 text-white shadow' : 'text-slate-400 hover:text-emerald-400'"
+                    class="w-full py-2 text-xs font-medium leading-5 rounded-md transition-all focus:outline-none">
+                    Web Link
                 </button>
             </div>
-            <!-- Quick Suggestions -->
-            <div class="mt-4 flex flex-wrap justify-center gap-2 text-xs text-slate-400">
-                <span>Try:</span>
-                <button type="button" onclick="setInput('Classic French Omelette')"
-                    class="hover:text-orange-400 underline decoration-slate-600 underline-offset-2">French
-                    Omelette</button>
-                <button type="button" onclick="setInput('Spaghetti Carbonara')"
-                    class="hover:text-orange-400 underline decoration-slate-600 underline-offset-2">Carbonara</button>
-                <button type="button" onclick="setInput('Thai Green Curry')"
-                    class="hover:text-orange-400 underline decoration-slate-600 underline-offset-2">Thai Curry</button>
-            </div>
-        </form>
 
-        <!-- OR Divider -->
-        <div class="relative max-w-xl mx-auto my-8">
-            <div class="absolute inset-0 flex items-center" aria-hidden="true">
-                <div class="w-full border-t border-slate-700/50"></div>
+            <!-- Tab Content -->
+
+            <!-- 1. Describe It -->
+            <div x-show="tab === 'describe'" class="transition-all duration-300">
+                <form action="/" method="POST" class="relative group">
+                    <input type="hidden" name="chef_id" id="chefInput" value="gourmet">
+                    <!-- Glow Removed -->
+                    <div class="relative flex bg-white rounded-lg p-1 shadow-lg shadow-slate-900/50">
+                        <input type="text" name="query" placeholder="e.g. 'Spicy pasta carbonara with bacon'..."
+                            class="block w-full rounded-md border-0 py-3 pl-4 pr-4 text-slate-900 ring-0 placeholder:text-slate-400 focus:ring-0 text-sm sm:leading-6 focus:outline-none"
+                            autofocus>
+                        <button type="submit"
+                            class="flex-none rounded-md bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-slate-700 transition-colors duration-200">
+                            Create
+                        </button>
+                    </div>
+                    <!-- Quick Suggestions -->
+                    <div class="mt-4 flex flex-wrap justify-center gap-2 text-xs text-slate-400">
+                        <span>Try:</span>
+                        <button type="button" onclick="setInput('Classic French Omelette')"
+                            class="hover:text-slate-200 underline decoration-slate-600 underline-offset-2">French
+                            Omelette</button>
+                        <button type="button" onclick="setInput('Spaghetti Carbonara')"
+                            class="hover:text-slate-200 underline decoration-slate-600 underline-offset-2">Carbonara</button>
+                    </div>
+                </form>
             </div>
-            <div class="relative flex justify-center">
-                <span class="bg-slate-900 px-3 text-sm text-slate-500 font-mono uppercase tracking-widest">or
-                    import</span>
+
+            <!-- 2. Social Link -->
+            <div x-show="tab === 'social'" style="display: none;" class="transition-all duration-300">
+                <form action="/generate/video" method="POST" class="relative group" id="videoForm"
+                    onsubmit="showLoading('Watching Video', 'The AI is watching the video and extracting the recipe...')">
+                    <!-- Glow Removed -->
+                    <div class="relative flex bg-slate-800 rounded-lg p-1 shadow-lg border border-slate-700">
+                        <div class="flex items-center pl-3 text-slate-400">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                <path
+                                    d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
+                            </svg>
+                        </div>
+                        <input type="url" name="video_url" placeholder="Paste TikTok or Reel Link..."
+                            class="block w-full bg-transparent rounded-md border-0 py-3 pl-3 pr-4 text-white placeholder:text-slate-500 focus:ring-0 sm:text-sm focus:outline-none">
+                        <button type="submit"
+                            class="flex-none rounded-md bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20 transition-colors">
+                            Import
+                        </button>
+                    </div>
+                    <p class="mt-2 text-xs text-slate-500">Works with TikTok and Instagram Reels (Public)</p>
+                </form>
             </div>
+
+            <!-- 3. Web Link -->
+            <div x-show="tab === 'web'" style="display: none;" class="transition-all duration-300">
+                <form action="/generate/web" method="POST" class="relative group" id="webForm"
+                    onsubmit="showLoading('Reading Website', 'The AI is reading the blog post and re-imagining the dish...')">
+                    <!-- Glow Removed -->
+                    <div class="relative flex bg-slate-800 rounded-lg p-1 shadow-lg border border-slate-700">
+                        <div class="flex items-center pl-3 text-slate-400">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9">
+                                </path>
+                            </svg>
+                        </div>
+                        <input type="url" name="blog_url" placeholder="Paste Recipe Blog URL..."
+                            class="block w-full bg-transparent rounded-md border-0 py-3 pl-3 pr-4 text-white placeholder:text-slate-500 focus:ring-0 sm:text-sm focus:outline-none">
+                        <button type="submit"
+                            class="flex-none rounded-md bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20 transition-colors">
+                            Fetch
+                        </button>
+                    </div>
+                    <p class="mt-2 text-xs text-slate-500">Imports recipe text and re-imagines the photo.</p>
+                </form>
+            </div>
+
         </div>
 
-        <!-- Social Media Import Form -->
-        <form action="/generate/video" method="POST" class="max-w-md mx-auto relative group" id="videoForm">
-            <div
-                class="absolute -inset-1 bg-gradient-to-r from-pink-600 via-red-500 to-yellow-500 rounded-lg blur opacity-10 group-hover:opacity-60 transition duration-500">
-            </div>
-            <div class="relative flex bg-slate-800 rounded-lg p-1 shadow-lg border border-slate-700">
-                <div class="flex items-center pl-3 text-slate-400">
-                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                        <path
-                            d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
-                    </svg>
-                </div>
-                <input type="url" name="video_url" placeholder="Paste TikTok or Reel Link..."
-                    class="block w-full bg-transparent rounded-md border-0 py-3 pl-3 pr-4 text-white placeholder:text-slate-500 focus:ring-0 sm:text-sm focus:outline-none"
-                    required>
-                <button type="submit"
-                    class="flex-none rounded-md bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20 transition-colors">
-                    Import
-                </button>
-            </div>
-            <p class="mt-2 text-xs text-slate-500">Extracts recipe using Gemini 1.5 Vision</p>
-        </form>
-
-        <!-- Loading Overlay -->
+        <!-- Loading Overlay (Shared) -->
         <div id="loadingOverlay"
             class="fixed inset-0 z-50 hidden bg-slate-900/90 backdrop-blur-sm flex items-center justify-center">
             <div class="text-center max-w-sm px-4">
                 <div class="mb-6 relative mx-auto w-24 h-24">
-                    <div class="absolute inset-0 rounded-full border-t-2 border-r-2 border-orange-500 animate-spin">
+                    <div class="absolute inset-0 rounded-full border-t-2 border-r-2 border-white animate-spin">
                     </div>
                     <div
-                        class="absolute inset-2 rounded-full border-t-2 border-l-2 border-orange-300 animate-spin reverse">
+                        class="absolute inset-2 rounded-full border-t-2 border-l-2 border-slate-500 animate-spin reverse">
                     </div>
-                    <div class="absolute inset-0 flex items-center justify-center text-4xl">👀</div>
+                    <div class="absolute inset-0 flex items-center justify-center text-4xl" id="loadingIcon">👀</div>
                 </div>
-                <h3 class="text-xl font-serif font-bold text-white mb-2">Watching Video...</h3>
-                <p class="text-slate-300">The AI is analyzing the cooking process. This typically takes about 15-20
-                    seconds.</p>
+                <h3 class="text-xl font-serif font-bold text-white mb-2" id="loadingTitle">Processing...</h3>
+                <p class="text-slate-300" id="loadingText">Please wait.</p>
                 <!-- Progress emulation -->
                 <div class="mt-6 w-full bg-slate-700 rounded-full h-1.5 overflow-hidden">
-                    <div class="bg-gradient-to-r from-orange-500 to-pink-500 h-1.5 rounded-full animate-progress origin-left"
-                        style="width: 0%"></div>
+                    <div class="bg-white h-1.5 rounded-full animate-progress origin-left" style="width: 0%"></div>
                 </div>
             </div>
         </div>
+
     </div>
 </div>
 
@@ -158,6 +185,10 @@
         {% endif %}
     </div>
 </div>
+
+<!-- Load Alpine.js for Tabs -->
+<script src="//unpkg.com/alpinejs" defer></script>
+
 {% endblock %}
 
 {% block scripts %}
@@ -165,41 +196,36 @@
     function setInput(text) {
         const input = document.querySelector('input[name="query"]');
         input.value = text;
+        // Switch to describe tab if needed (Alpine logic handles view, we just need to target input)
+        // Ideally we update Alpine state but this simple interaction works if visible
         input.focus();
     }
 
     function selectChef(id) {
-        // Update Hidden Input
         document.getElementById('chefInput').value = id;
-
-        // Update UI
-        // Reset all
         document.querySelectorAll('[id^="chef-"]').forEach(el => {
-            el.classList.remove('ring-2', 'ring-orange-500', 'bg-slate-800');
+            el.classList.remove('ring-1', 'ring-slate-500', 'bg-slate-800');
             el.classList.add('bg-slate-800/50');
         });
-
-        // Highlight active
         const active = document.getElementById('chef-' + id);
         active.classList.remove('bg-slate-800/50');
-        active.classList.add('ring-2', 'ring-orange-500', 'bg-slate-800');
+        active.classList.add('ring-1', 'ring-slate-500', 'bg-slate-800');
     }
 
-    // Check URL params for pre-selection (e.g. coming from /chefs page)
     const urlParams = new URLSearchParams(window.location.search);
     const chefParam = urlParams.get('chef');
-    if (chefParam) {
-        selectChef(chefParam);
-    }
+    if (chefParam) selectChef(chefParam);
 
-    // Video Form Handler
-    document.getElementById('videoForm').addEventListener('submit', function () {
+    // Unified Loading Handler
+    function showLoading(title, text) {
         document.getElementById('loadingOverlay').classList.remove('hidden');
-        // Animate progress bar (fake 20s)
+        document.getElementById('loadingTitle').innerText = title;
+        document.getElementById('loadingText').innerText = text;
+
         const bar = document.querySelector('.animate-progress');
         bar.style.transition = "width 20s cubic-bezier(0.1, 0.7, 1.0, 0.1)";
         setTimeout(() => bar.style.width = "100%", 100);
-    });
+    }
 </script>
 <style>
     @keyframes spin {
