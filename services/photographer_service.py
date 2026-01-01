@@ -8,7 +8,7 @@ from io import BytesIO
 
 # Load Configuration
 def load_photographer_config():
-    path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "photographer.json")
+    path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "agents", "photographer.json")
     with open(path, 'r') as f:
         return json.load(f)['photographer']
 

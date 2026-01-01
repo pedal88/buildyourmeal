@@ -553,18 +553,18 @@ def recipes_table_view():
     # 1. Load Filter Data Options
     # Use global load_json_option helper
 
-    cuisine_options = load_json_option('cuisines.json', 'cuisines')
-    diet_options = load_json_option('diets_tag.json', 'diets')
-    difficulty_options = load_json_option('difficulty_tag.json', 'difficulty')
+    cuisine_options = load_json_option('post_processing/cuisines.json', 'cuisines')
+    diet_options = load_json_option('constraints/diets.json', 'diets')
+    difficulty_options = load_json_option('constraints/difficulty.json', 'difficulty')
     
-    pt_data = load_json_option('protein_types.json', 'protein_types')
+    pt_data = load_json_option('constraints/main_protein.json', 'protein_types')
     protein_options = []
     for p in pt_data:
         if 'examples' in p:
             protein_options.extend(p['examples'])
     protein_options = sorted(list(set(protein_options)))
     
-    mt_data = load_json_option('meal_types.json', 'meal_classification')
+    mt_data = load_json_option('constraints/meal_types.json', 'meal_classification')
     meal_type_options = []
     if isinstance(mt_data, dict):
         for category_list in mt_data.values():

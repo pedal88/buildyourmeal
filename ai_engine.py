@@ -82,19 +82,19 @@ def load_json(path):
         return json.load(f)
 
 try:
-    pantry_data = load_json("data/pantry.json")
+    pantry_data = load_json("data/constraints/pantry.json")
     pantry_map = {item['name'].lower(): item['id'] for item in pantry_data['ingredients']}
 except Exception:
     pantry_map = {}
 
 # --- RESTORED EXPORTS FOR APP COMPATIBILITY ---
 try:
-    chefs_data = load_json("data/chefs.json")['chefs']
+    chefs_data = load_json("data/agents/chefs.json")['chefs']
 except Exception:
     chefs_data = []
 
 try:
-    protein_data = load_json("data/protein_types.json")['protein_types']
+    protein_data = load_json("data/constraints/main_protein.json")['protein_types']
 except Exception:
     protein_data = []
 
