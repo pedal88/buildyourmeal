@@ -33,6 +33,10 @@ class Instruction(typing.TypedDict):
     phase: str # 'Prep', 'Cook', 'Serve'
     text: str
 
+class ComponentSchema(typing.TypedDict):
+    name: str # e.g., "The Steak", "Garlic Butter Sauce", "Main Dish"
+    steps: list[Instruction]
+
 class RecipeSchema(typing.TypedDict):
     title: str
     cuisine: str
@@ -47,7 +51,7 @@ class RecipeSchema(typing.TypedDict):
     prep_time_mins: int
     
     ingredient_groups: list[IngredientGroup]
-    instructions: list[Instruction]
+    components: list[ComponentSchema]  # CHANGED: From instructions to components
     chef_note: str
 
 # --- Helper Classes for Application Compatibility ---
@@ -65,8 +69,12 @@ class RecipeObj:
                 if hasattr(group, 'ingredients'):
                     group.ingredients = [RecipeObj(**i) if isinstance(i, dict) else i for i in group.ingredients]
         
-        if 'instructions' in entries:
-            self.instructions = [RecipeObj(**i) if isinstance(i, dict) else i for i in entries['instructions']]
+        # Handle NEW nested components
+        if 'components' in entries:
+            self.components = [RecipeObj(**c) if isinstance(c, dict) else c for c in entries['components']]
+            for comp in self.components:
+                if hasattr(comp, 'steps'):
+                    comp.steps = [RecipeObj(**s) if isinstance(s, dict) else s for s in comp.steps]
 
 # --- Data Loading (Retaining Pantry/Chef Context) ---
 def load_json(path):
@@ -171,38 +179,73 @@ def generate_recipe_ai(query: str, slim_context: list[dict] = None, chef_id: str
     # Chef Context
     chef_context = f"You are acting as the Chef ID: {chef_id}."
 
-    # 1. Define the "Perfect Example" string (No ellipses! and adjusted for schema)
+    # 1. Define the "Perfect Example" string with MULTI-COMPONENT structure
     FEW_SHOT_EXAMPLE = """
     {
-      "title": "Perfect Seared Salmon",
-      "cuisine": "Mediterranean",
-      "diet": "Pescatarian",
+      "title": "Pan-Seared Ribeye with Garlic Herb Butter and Roasted Vegetables",
+      "cuisine": "American",
+      "diet": "Non-Vegetarian",
       "difficulty": "Moderate",
-      "protein_type": "Fish",
+      "protein_type": "Beef",
       "meal_types": ["Dinner"],
       "chef_id": "gourmet",
-      "cleanup_factor": 2,
-      "taste_level": 3,
-      "prep_time_mins": 15,
+      "cleanup_factor": 3,
+      "taste_level": 4,
+      "prep_time_mins": 20,
       "ingredient_groups": [
         {
-            "component": "Main", 
+            "component": "Steak", 
             "ingredients": [
-                {"name": "Salmon Fillet", "amount": 200, "unit": "g"},
-                {"name": "Olive Oil", "amount": 15, "unit": "ml"}
+                {"name": "Ribeye Steak", "amount": 300, "unit": "g"},
+                {"name": "Olive Oil", "amount": 15, "unit": "ml"},
+                {"name": "Salt", "amount": 5, "unit": "g"},
+                {"name": "Black Pepper", "amount": 2, "unit": "g"}
+            ]
+        },
+        {
+            "component": "Garlic Herb Butter",
+            "ingredients": [
+                {"name": "Butter", "amount": 50, "unit": "g"},
+                {"name": "Garlic", "amount": 10, "unit": "g"},
+                {"name": "Fresh Parsley", "amount": 5, "unit": "g"}
+            ]
+        },
+        {
+            "component": "Roasted Vegetables",
+            "ingredients": [
+                {"name": "Carrots", "amount": 150, "unit": "g"},
+                {"name": "Broccoli", "amount": 150, "unit": "g"}
             ]
         }
       ],
-      "instructions": [
-        {"step_number": 1, "phase": "Prep", "text": "Pat the salmon fillets completely dry with paper towels to ensure a crispy skin."},
-        {"step_number": 2, "phase": "Prep", "text": "Season both sides generously with salt and black pepper."},
-        {"step_number": 3, "phase": "Cook", "text": "Heat the olive oil in a non-stick skillet over medium-high heat until shimmering."},
-        {"step_number": 4, "phase": "Cook", "text": "Place salmon skin-side down. Press gently with a spatula for 10 seconds to prevent curling."},
-        {"step_number": 5, "phase": "Cook", "text": "Cook undisturbed for 4-5 minutes until the skin is crispy and releases easily from the pan."},
-        {"step_number": 6, "phase": "Cook", "text": "Flip carefully and cook for another 1-2 minutes until medium-rare."},
-        {"step_number": 7, "phase": "Serve", "text": "Transfer to a plate and let rest for 2 minutes before serving."}
+      "components": [
+        {
+          "name": "The Steak",
+          "steps": [
+            {"step_number": 1, "phase": "Prep", "text": "Pat the ribeye steak completely dry with paper towels and let rest at room temperature for 15 minutes."},
+            {"step_number": 2, "phase": "Prep", "text": "Season both sides generously with salt and black pepper."},
+            {"step_number": 3, "phase": "Cook", "text": "Heat olive oil in a cast-iron skillet over high heat until shimmering."},
+            {"step_number": 4, "phase": "Cook", "text": "Sear the steak for 3-4 minutes per side for medium-rare, flipping only once."},
+            {"step_number": 5, "phase": "Serve", "text": "Transfer to a plate and let rest for 5 minutes before slicing."}
+          ]
+        },
+        {
+          "name": "Garlic Herb Butter",
+          "steps": [
+            {"step_number": 1, "phase": "Prep", "text": "Finely mince the garlic and chop the parsley."},
+            {"step_number": 2, "phase": "Prep", "text": "Mash the softened butter with garlic and parsley until well combined."}
+          ]
+        },
+        {
+          "name": "Roasted Vegetables",
+          "steps": [
+            {"step_number": 1, "phase": "Prep", "text": "Cut carrots and broccoli into uniform bite-sized pieces."},
+            {"step_number": 2, "phase": "Cook", "text": "Toss with olive oil, salt, and pepper."},
+            {"step_number": 3, "phase": "Cook", "text": "Roast at 200°C for 20 minutes until caramelized and tender."}
+          ]
+        }
       ],
-      "chef_note": "Dry skin is the secret to the crunch!"
+      "chef_note": "The key to a perfect steak is a screaming hot pan and patience!"
     }
     """
 
@@ -213,11 +256,19 @@ def generate_recipe_ai(query: str, slim_context: list[dict] = None, chef_id: str
     GOAL: Generate a structured recipe for: "{query}" using these ingredients: {pantry_str}.
     
     STRICT OUTPUT RULES:
-    1.  **Granularity**: You MUST generate at least 5-8 separate instruction steps.
-    2.  **Phasing**: Separate "Prep", "Cook", and "Serve" phases explicitly.
+    1.  **Granularity**: You MUST generate at least 5-8 separate instruction steps PER COMPONENT.
+    2.  **Phasing**: Separate "Prep", "Cook", and "Serve" phases explicitly within each component.
     3.  **Format**: Follow the exact JSON structure of the example below.
     
-    EXAMPLE OF DESIRED OUTPUT (MIMIC THIS STRUCTURE & DEPTH):
+    COMPONENT SPLITTING LOGIC (CRITICAL):
+    - **Simple dishes** (e.g., "scrambled eggs", "pasta with tomato sauce"): Use 1 component named "Main Dish"
+    - **Complex dishes** (e.g., "steak with garlic butter and vegetables", "chicken with rice and curry sauce"): Split into logical components:
+      * Main protein (e.g., "The Steak", "The Chicken")
+      * Sauces (e.g., "Garlic Herb Butter", "Curry Sauce")  
+      * Sides (e.g., "Roasted Vegetables", "Pilaf Rice")
+    - Each component should be **independently cookable** with its own prep/cook/serve flow
+    
+    EXAMPLE OF DESIRED OUTPUT (COMPLEX MULTI-COMPONENT DISH):
     {FEW_SHOT_EXAMPLE}
     
     Generate the JSON for the user's request now:

@@ -43,6 +43,28 @@ class Ingredient(db.Model):
 
     recipe_ingredients: Mapped[list["RecipeIngredient"]] = relationship(back_populates="ingredient")
 
+class Chef(db.Model):
+    __tablename__ = 'chef'
+    id: Mapped[str] = mapped_column(String, primary_key=True) # e.g. "french_classic"
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    archetype: Mapped[str] = mapped_column(String)
+    description: Mapped[str] = mapped_column(Text)
+    image_filename: Mapped[str] = mapped_column(String)
+    
+    # Store complex JSON constraints as strings for now
+    constraints: Mapped[str] = mapped_column(Text, default='{}') 
+    diet_preferences: Mapped[str] = mapped_column(Text, default='[]')
+    cooking_style: Mapped[str] = mapped_column(Text, default='{}')
+    ingredient_logic: Mapped[str] = mapped_column(Text, default='{}')
+    instruction_style: Mapped[str] = mapped_column(Text, default='{}')
+
+    recipes: Mapped[list["Recipe"]] = relationship(back_populates="chef")
+
+class RecipeMealType(db.Model):
+    __tablename__ = 'recipe_meal_type'
+    recipe_id: Mapped[int] = mapped_column(ForeignKey("recipe.id"), primary_key=True)
+    meal_type: Mapped[str] = mapped_column(String, primary_key=True)
+
 class Recipe(db.Model):
     __tablename__ = 'recipe'
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -51,8 +73,13 @@ class Recipe(db.Model):
     diet: Mapped[str] = mapped_column(String)
     difficulty: Mapped[str] = mapped_column(String)
     protein_type: Mapped[str] = mapped_column(String, nullable=True)
-    meal_types: Mapped[str] = mapped_column(String, default='[]') # JSON list of tags
     image_filename: Mapped[str] = mapped_column(String, nullable=True)
+
+    # New Metadata
+    chef_id: Mapped[str] = mapped_column(ForeignKey("chef.id"), nullable=True)
+    taste_level: Mapped[int] = mapped_column(Integer, nullable=True) # 1-5
+    prep_time_mins: Mapped[int] = mapped_column(Integer, nullable=True) # snapped to time.json
+    cleanup_factor: Mapped[int] = mapped_column(Integer, nullable=True)
 
     # Nutrition Totals (Calculated)
     total_calories: Mapped[float] = mapped_column(Float, nullable=True)
@@ -62,27 +89,21 @@ class Recipe(db.Model):
     total_fiber: Mapped[float] = mapped_column(Float, nullable=True)
     total_sugar: Mapped[float] = mapped_column(Float, nullable=True)
 
-    # Metadata
-    cleanup_factor: Mapped[int] = mapped_column(Integer, nullable=True)
-
     instructions: Mapped[list["Instruction"]] = relationship(back_populates="recipe", cascade="all, delete-orphan")
     ingredients: Mapped[list["RecipeIngredient"]] = relationship(back_populates="recipe", cascade="all, delete-orphan")
+    chef: Mapped["Chef"] = relationship(back_populates="recipes")
+    meal_types: Mapped[list["RecipeMealType"]] = relationship(cascade="all, delete-orphan")
 
     @property
     def meal_types_list(self):
-        if not self.meal_types:
-            return []
-        try:
-            import json
-            return json.loads(self.meal_types)
-        except:
-            return []
+        return [fmt.meal_type for fmt in self.meal_types]
 
 class Instruction(db.Model):
     __tablename__ = 'instruction'
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     recipe_id: Mapped[int] = mapped_column(ForeignKey("recipe.id"), nullable=False)
     phase: Mapped[str] = mapped_column(String, nullable=False) # "Prep", "Cook", "Serve"
+    component: Mapped[str] = mapped_column(String(100), nullable=False, default="Main Dish") # NEW: e.g., "The Steak", "The Sauce"
     step_number: Mapped[int] = mapped_column(Integer, nullable=False)
     text: Mapped[str] = mapped_column(Text, nullable=False)
 

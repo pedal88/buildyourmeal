@@ -152,53 +152,63 @@
             {{ type.section_header('The Method', 'Step-by-step instructions from the chef.') }}
 
             <div class="space-y-12">
-                {% for phase, steps in steps_by_phase.items() %}
-                {% if steps %}
-                <div class="relative pl-8 border-l-2 border-slate-100">
-                    <span class="absolute -left-[9px] top-0 h-4 w-4 rounded-full border-2 border-white 
-                            {% if phase == 'Prep' %}bg-blue-400
-                            {% elif phase == 'Cook' %}bg-orange-500
-                            {% else %}bg-green-500{% endif %}">
-                    </span>
+                {% for component_name, steps in steps_by_component %}
+                <div class="component-section">
+                    <!-- Component Header -->
+                    <h2 class="text-3xl font-serif font-bold text-slate-900 mb-8 pb-3 border-b-2 border-slate-200">
+                        {{ component_name }}
+                    </h2>
 
-                    <h3 class="text-sm font-bold uppercase tracking-widest text-slate-400 mb-6 
-                            {% if phase == 'Prep' %}text-blue-500
-                            {% elif phase == 'Cook' %}text-orange-600
-                            {% else %}text-green-600{% endif %}">
-                        {{ phase }} Phase
-                    </h3>
+                    <!-- Steps within this component, grouped by phase -->
+                    {% for phase in ['Prep', 'Cook', 'Serve'] %}
+                    {% set phase_steps = steps|selectattr('phase', 'equalto', phase)|list %}
+                    {% if phase_steps %}
+                    <div class="relative pl-8 border-l-2 border-slate-100 mb-8">
+                        <span class="absolute -left-[9px] top-0 h-4 w-4 rounded-full border-2 border-white 
+                                {% if phase == 'Prep' %}bg-blue-400
+                                {% elif phase == 'Cook' %}bg-orange-500
+                                {% else %}bg-green-500{% endif %}">
+                        </span>
 
-                    <div class="space-y-8">
-                        {% for step in steps %}
-                        <div class="group flex gap-6">
-                            <span
-                                class="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-slate-500 font-serif font-bold group-hover:bg-slate-900 group-hover:text-white transition-colors duration-300">
-                                {{ step.step_number }}
-                            </span>
-                            <p class="text-xl text-slate-800 leading-relaxed font-light">
-                                {{ step.text }}
-                            </p>
+                        <h3 class="text-sm font-bold uppercase tracking-widest text-slate-400 mb-6 
+                                {% if phase == 'Prep' %}text-blue-500
+                                {% elif phase == 'Cook' %}text-orange-600
+                                {% else %}text-green-600{% endif %}">
+                            {{ phase }} Phase
+                        </h3>
+
+                        <div class="space-y-8">
+                            {% for step in phase_steps %}
+                            <div class="group flex gap-6">
+                                <span
+                                    class="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-slate-500 font-serif font-bold group-hover:bg-slate-900 group-hover:text-white transition-colors duration-300">
+                                    {{ step.step_number }}
+                                </span>
+                                <p class="text-xl text-slate-800 leading-relaxed font-light">
+                                    {{ step.text }}
+                                </p>
+                            </div>
+                            {% endfor %}
                         </div>
-                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+                {% endfor %}
+
+                <!-- Chef's Note / Footer for Recipe -->
+                <div class="mt-16 p-8 bg-orange-50 rounded-2xl border border-orange-100 flex gap-4 items-start">
+                    <span class="text-4xl">👨‍🍳</span>
+                    <div>
+                        <h4 class="font-serif text-lg font-bold text-orange-900">Chef's Note</h4>
+                        <p class="text-orange-800/80 mt-1">
+                            Remember, cooking is an art. Feel free to adjust seasoning to your taste.
+                            Enjoy your meal!
+                        </p>
                     </div>
                 </div>
-                {% endif %}
-                {% endfor %}
             </div>
 
-            <!-- Chef's Note / Footer for Recipe -->
-            <div class="mt-16 p-8 bg-orange-50 rounded-2xl border border-orange-100 flex gap-4 items-start">
-                <span class="text-4xl">👨‍🍳</span>
-                <div>
-                    <h4 class="font-serif text-lg font-bold text-orange-900">Chef's Note</h4>
-                    <p class="text-orange-800/80 mt-1">
-                        Remember, cooking is an art. Feel free to adjust seasoning to your taste.
-                        Enjoy your meal!
-                    </p>
-                </div>
-            </div>
         </div>
-
     </div>
-</div>
-{% endblock %}
+    {% endblock %}

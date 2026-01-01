@@ -862,15 +862,17 @@ def generate():
                 )
                 db.session.add(recipe_ing)
             
-        # Instructions
-        for instr in recipe_data.instructions:
-            new_instr = Instruction(
-                recipe_id=new_recipe.id,
-                phase=instr.phase,
-                step_number=instr.step_number,
-                text=instr.text
-            )
-            db.session.add(new_instr)
+        # Instructions (NOW NESTED IN COMPONENTS)
+        for comp in recipe_data.components:
+            for step in comp.steps:
+                new_instr = Instruction(
+                    recipe_id=new_recipe.id,
+                    phase=step.phase,
+                    component=comp.name,  # NEW: Save component name
+                    step_number=step.step_number,
+                    text=step.text
+                )
+                db.session.add(new_instr)
         
         # Commit AFTER all instructions are added
         db.session.commit()
@@ -878,6 +880,35 @@ def generate():
         # 4. Calculate Nutrition
         from services.nutrition_service import calculate_nutritional_totals
         calculate_nutritional_totals(new_recipe.id)
+        
+        # 5. AUTO-GENERATE RECIPE IMAGE
+        try:
+            print(f"🎨 Auto-generating image for: {recipe_data.title}")
+            
+            # Create visual prompt from recipe title and cuisine
+            visual_context = f"{recipe_data.title} - {recipe_data.cuisine} cuisine"
+            visual_prompt = generate_visual_prompt(visual_context)
+            
+            # Generate actual image
+            img = generate_actual_image(visual_prompt)
+            
+            # Save to static/recipes/
+            import uuid
+            unique_suffix = str(uuid.uuid4())[:8]
+            filename = f"recipe_{new_recipe.id}_{unique_suffix}.png"
+            filepath = os.path.join('static', 'recipes', filename)
+            
+            img.save(filepath, 'PNG')
+            
+            # Update recipe with image filename
+            new_recipe.image_filename = filename
+            db.session.commit()
+            
+            print(f"✅ Image saved: {filename}")
+            
+        except Exception as img_error:
+            print(f"⚠️  Image generation failed (non-critical): {img_error}")
+            # Continue without image - don't block recipe creation
         
         return redirect(url_for('recipe_detail', recipe_id=new_recipe.id))
         
@@ -894,18 +925,24 @@ def generate():
 def recipe_detail(recipe_id):
     recipe = db.session.get(Recipe, recipe_id)
     if not recipe:
-        return "Recipe not found", 404
-        
-    # Group instructions by phase
-    steps_by_phase = {"Prep": [], "Cook": [], "Serve": []}
-    for step in recipe.instructions:
-        if step.phase in steps_by_phase:
-            steps_by_phase[step.phase].append(step)
+        flash("Recipe not found.", "error")
+        return redirect(url_for('index'))
     
-    # Sort steps in each phase
-    for phase in steps_by_phase:
-        steps_by_phase[phase].sort(key=lambda x: x.step_number)
-
+    # Group instructions by phase for display
+    instructions = Instruction.query.filter_by(recipe_id=recipe_id).order_by(Instruction.component, Instruction.phase, Instruction.step_number).all()
+    
+    steps_by_phase = {
+        'Prep': [i for i in instructions if i.phase == 'Prep'],
+        'Cook': [i for i in instructions if i.phase == 'Cook'],
+        'Serve': [i for i in instructions if i.phase == 'Serve']
+    }
+    
+    # NEW: Group instructions by component for multi-component display
+    from itertools import groupby
+    steps_by_component = []
+    for component_name, steps in groupby(instructions, key=lambda x: x.component):
+        steps_by_component.append((component_name, list(steps)))
+    
     # Group ingredients by component
     ingredients_by_component = {}
     for recipe_ing in recipe.ingredients:
@@ -914,7 +951,7 @@ def recipe_detail(recipe_id):
             ingredients_by_component[comp] = []
         ingredients_by_component[comp].append(recipe_ing)
 
-    return render_template('recipe.html', recipe=recipe, steps_by_phase=steps_by_phase, ingredients_by_component=ingredients_by_component)
+    return render_template('recipe.html', recipe=recipe, steps_by_phase=steps_by_phase, ingredients_by_component=ingredients_by_component, steps_by_component=steps_by_component)
 
 @app.route('/api/placeholder/ingredient/\u003cfood_id\u003e')
 def ingredient_placeholder(food_id):
