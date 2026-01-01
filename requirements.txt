@@ -5,3 +5,4 @@ sqlalchemy
 pydantic
 beautifulsoup4
 requests
+google-cloud-aiplatform>=1.38.0
