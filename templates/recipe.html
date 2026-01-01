@@ -85,106 +85,61 @@
         </p>
     </div>
 
-    <!-- Core Content Grid -->
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 border-t border-slate-200 pt-12">
+    <!-- COMPONENT COLUMNS LAYOUT -->
+    <div class="border-t border-slate-200 pt-12">
+        {{ type.section_header('Cooking Steps', 'Each component prepared separately.') }}
 
-        <!-- Left Column: The Pantry (Visual Ingredients) -->
-        <div class="lg:col-span-4 space-y-12">
-            <div class="sticky top-24">
-                {{ type.section_header('The Pantry', 'Ingredients required for this dish.') }}
+        <div
+            class="grid grid-cols-1 {% if steps_by_component|length == 2 %}md:grid-cols-2{% elif steps_by_component|length >= 3 %}md:grid-cols-3{% endif %} gap-8 mt-8">
+            {% for component_name, steps in steps_by_component %}
+            <div
+                class="component-card bg-white border-2 border-slate-200 rounded-2xl p-6 hover:border-slate-300 transition-colors">
+                <!-- Component Header -->
+                <h2 class="text-2xl font-serif font-bold text-slate-900 mb-6 pb-3 border-b-2 border-orange-200">
+                    {{ component_name }}
+                </h2>
 
-                <div class="space-y-10">
-                    {% for component, items in ingredients_by_component.items() %}
-                    <div class="bg-slate-50 rounded-xl p-2 border border-slate-100">
-                        <h3 class="font-serif text-lg font-bold text-slate-900 mb-4 border-b border-slate-200 pb-2">
-                            {{ component }}
-                        </h3>
-
-                        <!-- Visual Ingredient Grid -->
-                        <div class="grid grid-cols-3 gap-2 place-items-stretch">
-                            {% for item in items %}
-                            {{ card.visual_ingredient(item, size='xl') }}
-                            {% endfor %}
-                        </div>
+                <!-- Component-Specific Visual Ingredients -->
+                {% if ingredients_by_component[component_name] %}
+                <div class="mb-6">
+                    <h3 class="text-sm font-bold uppercase tracking-wide text-slate-500 mb-3">Ingredients</h3>
+                    <!-- Visual Grid with Images, Names, and Amounts -->
+                    <div class="grid grid-cols-4 gap-0.5">
+                        {% for item in ingredients_by_component[component_name] %}
+                        {{ card.visual_ingredient(item, size='md') }}
+                        {% endfor %}
                     </div>
-                    {% endfor %}
                 </div>
+                {% endif %}
 
-                <div class="mt-8 pt-8 border-t border-slate-200">
-                    <h3 class="font-serif text-lg font-bold text-slate-900 mb-4">Recipe Details</h3>
-                    <dl class="space-y-4 text-sm">
-                        <div class="flex flex-col sm:flex-row sm:justify-between border-b border-slate-100 pb-2">
-                            <dt class="font-medium text-slate-500">Cuisine</dt>
-                            <dd class="text-slate-900 font-semibold">{{ recipe.cuisine }}</dd>
-                        </div>
-                        <div class="flex flex-col sm:flex-row sm:justify-between border-b border-slate-100 pb-2">
-                            <dt class="font-medium text-slate-500">Diet</dt>
-                            <dd class="text-slate-900 font-semibold">{{ recipe.diet|capitalize }}</dd>
-                        </div>
-                        <div class="flex flex-col sm:flex-row sm:justify-between border-b border-slate-100 pb-2">
-                            <dt class="font-medium text-slate-500">Difficulty</dt>
-                            <dd class="text-slate-900 font-semibold">{{ recipe.difficulty }}</dd>
-                        </div>
-                        {% if recipe.protein_type %}
-                        <div class="flex flex-col sm:flex-row sm:justify-between border-b border-slate-100 pb-2">
-                            <dt class="font-medium text-slate-500">Protein</dt>
-                            <dd class="text-slate-900 font-semibold">
-                                <span class="text-slate-500 font-normal">{{ recipe.protein_type|get_protein_category
-                                    }}</span> • {{ recipe.protein_type }}
-                            </dd>
-                        </div>
-                        {% endif %}
-                        {% if recipe.meal_types_list %}
-                        <div class="flex flex-col sm:flex-row sm:justify-between border-b border-slate-100 pb-2">
-                            <dt class="font-medium text-slate-500">Meal Types</dt>
-                            <dd class="text-slate-900 font-semibold text-right">
-                                {{ recipe.meal_types_list|join(', ') }}
-                            </dd>
-                        </div>
-                        {% endif %}
-                    </dl>
-                </div>
-            </div>
-        </div>
-
-        <!-- Right Column: The Method (Instructions) -->
-        <div class="lg:col-span-8">
-            {{ type.section_header('The Method', 'Step-by-step instructions from the chef.') }}
-
-            <div class="space-y-12">
-                {% for component_name, steps in steps_by_component %}
-                <div class="component-section">
-                    <!-- Component Header -->
-                    <h2 class="text-3xl font-serif font-bold text-slate-900 mb-8 pb-3 border-b-2 border-slate-200">
-                        {{ component_name }}
-                    </h2>
-
-                    <!-- Steps within this component, grouped by phase -->
+                <!-- Steps within this component, grouped by phase -->
+                <div class="space-y-6">
                     {% for phase in ['Prep', 'Cook', 'Serve'] %}
                     {% set phase_steps = steps|selectattr('phase', 'equalto', phase)|list %}
                     {% if phase_steps %}
-                    <div class="relative pl-8 border-l-2 border-slate-100 mb-8">
+                    <div
+                        class="relative pl-6 border-l-2 {% if phase == 'Prep' %}border-blue-200{% elif phase == 'Cook' %}border-orange-300{% else %}border-green-200{% endif %}">
                         <span class="absolute -left-[9px] top-0 h-4 w-4 rounded-full border-2 border-white 
                                 {% if phase == 'Prep' %}bg-blue-400
                                 {% elif phase == 'Cook' %}bg-orange-500
                                 {% else %}bg-green-500{% endif %}">
                         </span>
 
-                        <h3 class="text-sm font-bold uppercase tracking-widest text-slate-400 mb-6 
-                                {% if phase == 'Prep' %}text-blue-500
+                        <h4 class="text-xs font-bold uppercase tracking-widest mb-3
+                                {% if phase == 'Prep' %}text-blue-600
                                 {% elif phase == 'Cook' %}text-orange-600
                                 {% else %}text-green-600{% endif %}">
-                            {{ phase }} Phase
-                        </h3>
+                            {{ phase }}
+                        </h4>
 
-                        <div class="space-y-8">
+                        <div class="space-y-4">
                             {% for step in phase_steps %}
-                            <div class="group flex gap-6">
+                            <div class="group flex gap-3">
                                 <span
-                                    class="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-slate-500 font-serif font-bold group-hover:bg-slate-900 group-hover:text-white transition-colors duration-300">
+                                    class="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-slate-100 text-slate-500 text-xs font-bold group-hover:bg-slate-900 group-hover:text-white transition-colors">
                                     {{ step.step_number }}
                                 </span>
-                                <p class="text-xl text-slate-800 leading-relaxed font-light">
+                                <p class="text-sm text-slate-700 leading-relaxed">
                                     {{ step.text }}
                                 </p>
                             </div>
@@ -194,21 +149,8 @@
                     {% endif %}
                     {% endfor %}
                 </div>
-                {% endfor %}
-
-                <!-- Chef's Note / Footer for Recipe -->
-                <div class="mt-16 p-8 bg-orange-50 rounded-2xl border border-orange-100 flex gap-4 items-start">
-                    <span class="text-4xl">👨‍🍳</span>
-                    <div>
-                        <h4 class="font-serif text-lg font-bold text-orange-900">Chef's Note</h4>
-                        <p class="text-orange-800/80 mt-1">
-                            Remember, cooking is an art. Feel free to adjust seasoning to your taste.
-                            Enjoy your meal!
-                        </p>
-                    </div>
-                </div>
             </div>
-
+            {% endfor %}
         </div>
     </div>
     {% endblock %}

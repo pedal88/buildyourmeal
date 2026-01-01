@@ -260,13 +260,59 @@ def generate_recipe_ai(query: str, slim_context: list[dict] = None, chef_id: str
     2.  **Phasing**: Separate "Prep", "Cook", and "Serve" phases explicitly within each component.
     3.  **Format**: Follow the exact JSON structure of the example below.
     
-    COMPONENT SPLITTING LOGIC (CRITICAL):
-    - **Simple dishes** (e.g., "scrambled eggs", "pasta with tomato sauce"): Use 1 component named "Main Dish"
-    - **Complex dishes** (e.g., "steak with garlic butter and vegetables", "chicken with rice and curry sauce"): Split into logical components:
-      * Main protein (e.g., "The Steak", "The Chicken")
-      * Sauces (e.g., "Garlic Herb Butter", "Curry Sauce")  
-      * Sides (e.g., "Roasted Vegetables", "Pilaf Rice")
-    - Each component should be **independently cookable** with its own prep/cook/serve flow
+    COMPONENT SPLITTING LOGIC (CRITICAL - READ CAREFULLY):
+    
+    **Pattern Recognition:**
+    - If query contains "X with Y" (e.g., "meatballs with mashed potatoes", "chicken with rice"):
+      → Create 2 SEPARATE components: "X" and "Y" (e.g., "Meatballs", "Mashed Potatoes")
+    - If query contains "X and Y and Z" (e.g., "steak and potatoes and salad"):
+      → Create 3+ SEPARATE components for each distinct item
+    - If query mentions a sauce/condiment (e.g., "with garlic butter", "in curry sauce"):
+      → Create separate component for the sauce (e.g., "Garlic Butter", "Curry Sauce")
+    
+    **Simple dishes** (e.g., "scrambled eggs", "tomato soup"): 
+    → Use 1 component named "Main Dish"
+    
+    **Complex dishes** (e.g., "burger with fries", "pasta with meatballs and salad"): 
+    → Split into logical components:
+      * Main proteins/carbs (e.g., "Burger Patty", "Pasta", "Meatballs")
+      * Sides (e.g., "French Fries", "Mashed Potatoes", "Side Salad")
+      * Sauces/Toppings (e.g., "Burger Sauce", "Tomato Sauce")
+    
+    **CRITICAL COMPONENT NAME CONSISTENCY RULE:**
+    The component structure MUST BE IDENTICAL in both ingredient_groups and components arrays.
+    Use the SAME component names for both ingredients AND instructions.
+    
+    Example CORRECT (Identical Components):
+    "ingredient_groups": [
+      {{"component": "Pizza Dough", "ingredients": [...]}},
+      {{"component": "Pizza Toppings", "ingredients": [...]}},
+      {{"component": "Greek Salad", "ingredients": [...]}}
+    ],
+    "components": [
+      {{"name": "Pizza Dough", "steps": [...]}},
+      {{"name": "Pizza Toppings", "steps": [...]}},
+      {{"name": "Greek Salad", "steps": [...]}}
+    ]
+    
+    Example WRONG (Different names or groupings):
+    "ingredient_groups": [
+      {{"component": "Pizza Dough Base", ...}},  ← Different!
+      {{"component": "Pizza Toppings (Diavola)", ...}},  ← Different!
+      {{"component": "Greek Salad & Dressing", ...}}  ← Different!
+    ],
+    "components": [
+      {{"name": "Pizza Dough", ...}},  ← Different!
+      {{"name": "Pizza Diavola Assembly and Baking", ...}},  ← Different!
+      {{"name": "Greek Salad", ...}}  ← Different!
+    ]
+    
+    RULE: If you use "Meatballs" in components, you MUST use "Meatballs" (not "Meatball Mixture" 
+    or "Swedish Meatballs & Gravy") in ingredient_groups.
+    
+    
+    **CRITICAL**: Each component MUST be independently cookable with its own complete prep/cook/serve flow.
+    Do NOT mix steps from different components together.
     
     EXAMPLE OF DESIRED OUTPUT (COMPLEX MULTI-COMPONENT DISH):
     {FEW_SHOT_EXAMPLE}

@@ -1,0 +1,24 @@
+{
+    "taste_scale": [
+        {
+            "value": 1,
+            "description": "Basic - Simple flavors, minimal seasoning"
+        },
+        {
+            "value": 2,
+            "description": "Simple - Good home cooking, straightforward profiles"
+        },
+        {
+            "value": 3,
+            "description": "Balanced - Well-rounded flavors, standard restaurant quality"
+        },
+        {
+            "value": 4,
+            "description": "Developed - Layered flavors, unexpected pairings, high quality"
+        },
+        {
+            "value": 5,
+            "description": "Complex - Fine dining standard, deep reduction, intricate balance"
+        }
+    ]
+}
