@@ -1,582 +1,308 @@
 
 import os
 import json
-import difflib
+import uuid
+import typing_extensions as typing # For TypedDict compatibility
+from dotenv import load_dotenv
 from google import genai
 from google.genai import types
-from pydantic import BaseModel, Field, field_validator
-from typing import List, Literal, Optional
-from dotenv import load_dotenv
 
+# Load Environment
 load_dotenv()
+api_key = os.getenv("GOOGLE_API_KEY")
 
-# Load Data
-def load_json(filename):
-    path = os.path.join(os.path.dirname(__file__), "data", filename)
-    with open(path, 'r') as f:
-        return json.load(f)
+if not api_key:
+    raise ValueError("GOOGLE_API_KEY is not set in .env")
 
-pantry_map = {}
-pantry_names = set()
+client = genai.Client(api_key=api_key)
 
-def set_pantry_memory(slim_context):
-    global pantry_map, pantry_names
-    pantry_map.clear()
-    pantry_names.clear()
-    for item in slim_context:
-        # item keys: i=id, n=name, c=category, u=unit, t=tags
-        name = item['n']
-        fid = item['i']
-        pantry_map[name.lower()] = fid
-        pantry_names.add(name.lower())
+# --- Pydantic/TypedDict Schema Definitions ---
+# Using TypedDict as requested for Gemini response_schema
 
-cuisines_data = load_json("cuisines.json")['cuisines']
-diets_data = load_json("diets_tag.json")['diets']
-difficulty_data = load_json("difficulty_tag.json")['difficulty']
-protein_data = load_json("protein_types.json")['protein_types']
-meal_types_data = load_json("meal_types.json")['meal_classification']
-cleanup_data = load_json("cleanup_factors.json")['cleanup_scale']
-
-# Flatten valid specific proteins (Tier 2)
-valid_proteins = set()
-for category in protein_data:
-    for example in category['examples']:
-        valid_proteins.add(example.lower())
-
-# Flatten valid meal tags
-valid_meal_tags = set()
-for category, tags in meal_types_data.items():
-    for tag in tags:
-        valid_meal_tags.add(tag)
-
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-
-if GOOGLE_API_KEY:
-    client = genai.Client(api_key=GOOGLE_API_KEY)
-else:
-    client = None
-    print("Warning: GOOGLE_API_KEY not found in environment.")
-
-# Pydantic Models for Validation
-class IngredientSchema(BaseModel):
+class Ingredient(typing.TypedDict):
     name: str
     amount: float
     unit: str
 
-    @field_validator('name')
-    @classmethod
-    def validate_ingredient_name(cls, v: str) -> str:
-        v_norm = v.lower().strip()
-        if v_norm not in pantry_names:
-            # 1. Try fuzzy match
-            matches = difflib.get_close_matches(v_norm, pantry_names, n=1, cutoff=0.6)
-            if matches:
-                 print(f"DEBUG: Fuzzy matched '{v}' to '{matches[0]}'")
-                 return matches[0]
-            
-            # 2. Try substring match (e.g. "pork" in "minced pork")
-            for p_name in pantry_names:
-                if v_norm in p_name or p_name in v_norm:
-                     print(f"DEBUG: Substring matched '{v}' to '{p_name}'")
-                     return p_name
-
-            print(f"WARNING: Ingredient '{v}' is not in the pantry. Allowing for import.")
-            return v_norm
-        return v_norm
-
-class IngredientGroupSchema(BaseModel):
+class IngredientGroup(typing.TypedDict):
     component: str
-    ingredients: List[IngredientSchema]
+    ingredients: list[Ingredient]
 
-class InstructionSchema(BaseModel):
-    phase: str
+class Instruction(typing.TypedDict):
     step_number: int
+    phase: str # 'Prep', 'Cook', 'Serve'
     text: str
 
-    @field_validator('phase')
-    @classmethod
-    def validate_phase(cls, v: str) -> str:
-        # Normalize strictly to Prep, Cook, Serve
-        v_clean = v.strip().title()
-        if v_clean in ["Prep", "Cook", "Serve"]:
-            return v_clean
-        
-        # Fuzzy match if AI gets creative (e.g. "Cook Salmon")
-        v_lower = v.lower()
-        if "prep" in v_lower:
-            return "Prep"
-        if "cook" in v_lower or "heat" in v_lower or "bake" in v_lower or "fry" in v_lower:
-            return "Cook"
-        if "serve" in v_lower or "plate" in v_lower or "assembl" in v_lower:
-            return "Serve"
-            
-        # Default fallback
-        return "Cook"
-
-class RecipeSchema(BaseModel):
+class RecipeSchema(typing.TypedDict):
     title: str
     cuisine: str
     diet: str
-    difficulty: str # Relaxed from Literal
-    cleanup_factor: int = Field(..., ge=1, le=5, description="Score 1-5 for cleanup effort")
+    difficulty: str
     protein_type: str
-    meal_types: List[str] = Field(default_factory=list)
-    ingredient_groups: List[IngredientGroupSchema]
-    instructions: List[InstructionSchema]
-
-    @field_validator('protein_type')
-    @classmethod
-    def validate_protein_type(cls, v: str) -> str:
-        v_lower = v.lower()
-        if v_lower not in valid_proteins:
-            print(f"WARNING: Invalid protein_type '{v}'. Falling back to 'Vegetarian'.")
-            # Heuristic: if it looks like meat, maybe 'Chicken'? But 'Vegetarian' is the safest neutral bucket if we don't know.
-            # actually better to just check if 'other' is allowed? 
-            # I'll just return "Vegetarian" as a safe fallback 
-            return "Vegetarian"
-        return v.title()
-
-    @field_validator('meal_types')
-    @classmethod
-    def validate_meal_types(cls, v: List[str]) -> List[str]:
-        validated = []
-        for tag in v:
-            # Simple check against flattened tags
-            if tag in valid_meal_tags:
-                validated.append(tag)
-        return validated
-
-    @field_validator('cuisine')
-    @classmethod
-    def validate_cuisine(cls, v: str) -> str:
-        if v not in cuisines_data:
-             if v.title() in cuisines_data:
-                 return v.title()
-             # Fallback instead of failing
-             print(f"WARNING: Invalid cuisine '{v}'. Falling back to 'Other'.")
-             return "Other" # Ensure 'Other' is in cuisines.json or handle it
-        return v
+    meal_types: list[str]
+    chef_id: str
+    # Numeric metadata (Critical for App Compatibility)
+    cleanup_factor: int 
+    taste_level: int
+    prep_time_mins: int
     
-    @field_validator('diet')
-    @classmethod
-    def validate_diet(cls, v: str) -> str:
-        # Handle case sensitivity (Pescatarian -> pescatarian)
-        v_lower = v.lower()
-        if v_lower not in diets_data:
-             print(f"WARNING: Invalid diet '{v}'. Falling back to 'omnivore'.")
-             return "omnivore"
-        return v_lower
+    ingredient_groups: list[IngredientGroup]
+    instructions: list[Instruction]
+    chef_note: str
 
-    @field_validator('difficulty')
-    @classmethod
-    def validate_difficulty(cls, v: str) -> str:
-        # Map common terms to our internal "Simplistic, Moderate, Elevated"
-        v_clean = v.title()
-        if v_clean in ["Simplistic", "Moderate", "Elevated"]:
-             return v_clean
+# --- Helper Classes for Application Compatibility ---
+# The app expects object access (recipe.title), not dict access (recipe['title'])
+class RecipeObj:
+    def __init__(self, **entries):
+        self.__dict__.update(entries)
+        # Handle nested objects for dot access
+        if 'ingredient_groups' in entries:
+            self.ingredient_groups = [
+                RecipeObj(**g) if isinstance(g, dict) else g 
+                for g in entries['ingredient_groups']
+            ]
+            for group in self.ingredient_groups:
+                if hasattr(group, 'ingredients'):
+                    group.ingredients = [RecipeObj(**i) if isinstance(i, dict) else i for i in group.ingredients]
         
-        # Fuzzy map
-        if "Easy" in v_clean or "Simple" in v_clean:
-             return "Simplistic"
-        if "Medium" in v_clean or "Hard" in v_clean: # Mapping Hard to Moderate for safety, or Elevated?
-             return "Moderate"
-        if "Complex" in v_clean or "Advanced" in v_clean or "Chef" in v_clean:
-             return "Elevated"
-        
-        print(f"WARNING: Invalid difficulty '{v}'. Falling back to 'Moderate'.")
-        return "Moderate"
+        if 'instructions' in entries:
+            self.instructions = [RecipeObj(**i) if isinstance(i, dict) else i for i in entries['instructions']]
 
-# Load Chefs Data
-chefs_data = load_json("chefs.json")['chefs']
-chef_map = {c['id']: c for c in chefs_data}
+# --- Data Loading (Retaining Pantry/Chef Context) ---
+def load_json(path):
+    with open(path, 'r') as f:
+        return json.load(f)
 
-def build_chef_prompt(chef):
-    c = chef.get('constraints', {})
-    ds = chef.get('diet_preferences', [])
-    cs = chef.get('cooking_style', {})
-    il = chef.get('ingredient_logic', {})
-    ins = chef.get('instruction_style', {})
-    
-    # helper for range constraints
-    def fmt_range(key):
-        r = c.get(key, {})
-        return f"{r.get('min', '?')}-{r.get('max', '?')}"
-    
+try:
+    pantry_data = load_json("data/pantry.json")
+    pantry_map = {item['name'].lower(): item['id'] for item in pantry_data['ingredients']}
+except Exception:
+    pantry_map = {}
+
+# --- RESTORED EXPORTS FOR APP COMPATIBILITY ---
+try:
+    chefs_data = load_json("data/chefs.json")['chefs']
+except Exception:
+    chefs_data = []
+
+try:
+    protein_data = load_json("data/protein_types.json")['protein_types']
+except Exception:
+    protein_data = []
+
+def generate_recipe_from_web_text(text: str, source_url: str) -> RecipeObj:
+    """
+    Generates a recipe from raw text (e.g. from a website extract).
+    """
     prompt = f"""
-    ROLE: {chef.get('name')} ({chef.get('archetype')})
-    DESCRIPTION: {chef.get('description')}
+    ROLE: Data Engineer.
+    TASK: Extract a structured recipe from this text content.
+    SOURCE URL: {source_url}
+    CONTENT:
+    {text[:15000]} # Limit context
     
-    PHILOSOPHY & CONSTRAINTS:
-    - Taste Priority: {fmt_range('taste_range')} / 5
-    - Speed Priority: {fmt_range('speed_range')} / 5
-    - Complexity Target: {fmt_range('complexity_range')} / 3 ({c.get('complexity_range',{}).get('note','')})
-    - Cleanup Limit: {fmt_range('cleanup_range')} / 5
-    - Richness Target: {fmt_range('richness_range')} / 5
-    
-    DIET PREFERENCES:
-    """
-    for d in ds:
-        prompt += f"- {d.get('action').upper()} {d.get('diet_id')}\n"
-        
-    prompt += f"""
-    COOKING STYLE:
-    - Preferred Tools: {', '.join(cs.get('preferred_tools', []))}
-    - Avoid Tools: {', '.join(cs.get('avoid_tools', []))}
-    - Preferred Methods: {', '.join(cs.get('preferred_methods', []))}
-    
-    INGREDIENT LOGIC:
-    - Staples: {', '.join(il.get('staples', []))}
-    - Banned: {', '.join(il.get('banned_ingredients', []))}
-    - Low Carb Strategy: {il.get('low_carb_strategy')}
-    
-    INSTRUCTION STYLE:
-    - Tone: {ins.get('tone')}
-    - Example Phrase: "{ins.get('example_phrase')}"
-    """
-    return prompt
-
-
-# Helper: Extract JSON from mixed text
-def extract_json_from_text(text: str):
-    """
-    Robustly extract JSON object from a string that might contain other text.
-    Finds the first '{' and the last '}'.
-    """
-    try:
-        # 1. Simple Case: It's clean JSON
-        return json.loads(text)
-    except json.JSONDecodeError:
-        pass
-
-    # 2. Markdown Strip Case
-    clean_text = text.replace('```json', '').replace('```', '').strip()
-    try:
-        return json.loads(clean_text)
-    except json.JSONDecodeError:
-        pass
-
-    # 3. Brute Force Substring Case (Find first { and last })
-    start = text.find('{')
-    end = text.rfind('}')
-    
-    if start != -1 and end != -1 and end > start:
-        json_str = text[start : end + 1]
-        try:
-             return json.loads(json_str)
-        except json.JSONDecodeError:
-             # Last ditch: try to fix common trailing comma or newlines? 
-             # For now, just fail.
-             pass
-             
-    raise ValueError(f"Could not extract valid JSON from response: {text[:100]}...")
-
-def generate_recipe_ai(query: str, slim_context: List[dict] = None, chef_id: str = "gourmet") -> RecipeSchema:
-    if not client:
-        raise Exception("Gemini API key not configured")
-
-    if slim_context:
-        # Use provided slim context
-        pantry_str = json.dumps(slim_context)
-        # We ensure memory is synced for validation
-        set_pantry_memory(slim_context)
-    else:
-        # Fallback to whatever is in memory or empty
-        pantry_str = "[]" 
-    
-    # Select Chef Logic
-    print(f"DEBUG IN: Requested Chef ID: '{chef_id}'")
-    
-    fallback_chef = chef_map.get("french_classic") 
-    if not fallback_chef:
-         fallback_chef = list(chef_map.values())[0]
-
-    selected_chef = chef_map.get(chef_id, fallback_chef)
-    print(f"DEBUG OUT: Selected Chef: {selected_chef.get('name')} (ID: {selected_chef.get('id')})")
-    
-    chef_system_prompt = build_chef_prompt(selected_chef)
-    
-    # Build Cleanup Guide String
-    cleanup_guide = "\n    CLEANUP FACTOR GUIDE (1-5):"
-    for item in cleanup_data:
-        cleanup_guide += f"\n    - {item['value']}: {item['description']}"
-
-    prompt = f"""
-    USER REQUEST: "{query}"
-
-    {chef_system_prompt}
-    
-    TASK: Create a recipe that satisfies the USER REQUEST using only available ingredients.
-
-    COMPONENT ARCHITECTURE RULES:
-    1. DEFAULT TO SINGLE COMPONENT: Cohesive dishes (Pasta, Pizza, Burgers, Salads, Soups) must be ONE component.
-       - Invalid: "Pasta Base", "Pasta Sauce", "Pasta Garnish".
-       - Valid: "Spaghetti Carbonara" (Everything included).
-    
-    2. SPLIT ONLY FOR DISTINCT MODULES: Create separate components ONLY if they are prepared completely independently and combined at the end.
-       - Valid (2 Components): "Steak" (Main) + "Fries" (Side).
-       - Valid (2 Components): "Sourdough Toast" (Base) + "Scrambled Eggs" (Topping).
-       - Valid (3 Components): "Schnitzel" (Main) + "Potato Salad" (Side) + "Lingonberry Jam" (Condiment).
-       
-    3. NO "MICRO-COMPONENTS": Seasonings, simple garnishes, or "frying fats" are NOT separate components. They belong to the Main.
-
-    INGREDIENT RULES:
-    1. Use ONLY ingredients from the available list below.
-    2. {pantry_str}
-    
-    INSTRUCTION PHASING RULES:
-    - PREP: Preliminary tasks only. Chopping, measuring, grating, and organizing tools. NO application of heat.
-    - COOK: The application of heat OR the final assembly logic for cold dishes (salads, etc.). This is where the dish is "transformed."
-    - SERVE: Final presentation and immediate serving tips.
-
-    JSON RULES:
-    1. Valid Cuisines: {", ".join(cuisines_data)}
-    2. Valid Diets: {", ".join(diets_data)}
-    3. Valid Difficulties: {", ".join(difficulty_data)}
-    4. Valid Protein Types (Tier 2): {", ".join([p.title() for p in valid_proteins])}
-    5. Valid Meal Types (Select 1-3 that apply): {", ".join(valid_meal_tags)}
-    6. Exact pantry names (n) required.
-    7. Cleanup Factor: Assign a score 1-5 based on this guide: {cleanup_guide}
-    
-    Return the output as a valid JSON object matching this schema (no markdown formatting):
-    {{
-        "title": "Clean, Simple Title",
-        "cuisine": "Valid Cuisine",
-        "diet": "Valid Diet",
-        "difficulty": "Valid Difficulty",
-        "cleanup_factor": 1,
-        "protein_type": "Valid Specific Protein",
-        "meal_types": ["Tag 1", "Tag 2"],
-        "ingredient_groups": [
-            {{
-                "component": "Main",
-                "ingredients": [
-                    {{"name": "n name", "amount": 0.0, "unit": "u"}}
-                ]
-            }}
-        ],
-        "instructions": [
-            {{"phase": "Prep", "step_number": 1, "text": "Friendly, short step description."}},
-            {{"phase": "Cook", "step_number": 2, "text": "Friendly, short step description."}},
-            {{"phase": "Serve", "step_number": 3, "text": "Friendly, short step description."}}
-        ]
-    }}
+    CRITICAL:
+    1. Extract the title, cuisine, diet, etc.
+    2. Infer numeric values for taste_level, prep_time_mins, etc.
+    3. Map ingredients to the best fit.
+    4. Structure instructions into Prep/Cook/Serve phases.
     """
     
+    print(f"DEBUG: Generating from Web Text via 'gemini-flash-latest'")
     response = client.models.generate_content(
         model='gemini-flash-latest',
-        contents=prompt
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema=RecipeSchema
+        )
     )
-    
+
     try:
-        data = extract_json_from_text(response.text)
-        return RecipeSchema(**data)
+        if response.parsed:
+             return RecipeObj(**response.parsed)
+        # import json # REMOVED: Redundant
+
+        data = json.loads(response.text)
+        return RecipeObj(**data)
     except Exception as e:
-        raise ValueError(f"Validation failed: {e}. Raw response: {response.text[:200]}")
+        print(f"ERROR: Web Generation failed. Raw output: {response.text[:200]}")
+        raise ValueError(f"AI Generation failed: {e}")
 
 def get_pantry_id(name: str):
-    return pantry_map.get(name.lower())
-
-def generate_recipe_from_video(video_path: str, caption: str, slim_context: List[dict] = None, chef_id: str = "gourmet") -> RecipeSchema:
-    if not client:
-        raise Exception("Gemini API key not configured")
-        
-    print(f"🎬 Uploading video to Gemini: {video_path}")
+    # 1. Try Exact Match
+    n_lower = name.lower()
+    if n_lower in pantry_map:
+        return pantry_map[n_lower]
     
-    # 1. Upload File
-    try:
-        # Use simple upload (v1beta/genai library style)
-        # Note: 'genai.files' might need import or access via client?
-        # The new 'google.genai' library (v1.0+) has specific file handling.
-        # Based on user's prompt they reference `genai.upload_file`.
-        # Because we imported `from google import genai`, we might need to adjust.
-        # BUT: The user code uses `genai.Client`. The older `google.generativeai` has `upload_file`.
-        # The new `google.genai` SDK is a bit different.
-        # Let's check imports. Line 5: `from google import genai`.
-        # This is the NEW SDK 1.0+.
-        # In new SDK: client.files.upload(...)
+    # 2. Try 'exact word' match (e.g. "thyme" in "fresh thyme")
+    # We prefer short keys matching parts of the query (pantry="thyme", query="fresh thyme")
+    for key, pid in pantry_map.items():
+        # Check if pantry item is inside the query (e.g. key="thyme" in name="fresh thyme")
+        if key in n_lower: 
+            return pid
+            
+    # 3. Try query inside pantry item (e.g. name="beef" in key="beef chuck")
+    for key, pid in pantry_map.items():
+        if n_lower in key:
+            return pid
+            
+    return None
+
+def set_pantry_memory(slim_context):
+    global pantry_map
+    for item in slim_context:
+        # Handle minified keys from pantry_service (n=name, i=id)
+        name = item.get('n', item.get('name'))
+        pantry_id = item.get('i', item.get('id'))
         
-        # However, checking earlier errors in this chat history (Step 1477), the user had `import google.generativeai as genai`.
-        # But `ai_engine.py` (Step 1882) shows `from google import genai`.
-        # This is an important distinction. 
-        # If using `google.genai` (new SDK):
-        file_ref = client.files.upload(file=video_path)
-    except Exception as e:
-        # Fallback if using older library or mixup
-        print(f"Upload failed: {e}")
-        raise ValueError(f"Failed to upload video to AI: {e}")
+        if name and pantry_id:
+            pantry_map[name.lower()] = pantry_id
 
-    print(f"⏳ Waiting for video processing (File URI: {file_ref.uri})...")
+# --- Core Generation Function ---
+def generate_recipe_ai(query: str, slim_context: list[dict] = None, chef_id: str = "gourmet") -> RecipeObj:
     
-    # 2. Wait for processing (Polling)
-    import time
-    while True:
-        # refresh file info
-        file_info = client.files.get(name=file_ref.name)
-        if file_info.state == "ACTIVE":
-            break
-        elif file_info.state == "FAILED":
-            raise ValueError("Video processing failed in Gemini Cloud.")
-        time.sleep(2)
-        print(".", end="", flush=True)
-    print(" Ready!")
-
-    # 3. Prepare Prompt
     if slim_context:
         set_pantry_memory(slim_context)
         pantry_str = json.dumps(slim_context)
     else:
         pantry_str = "[]"
-        
-    # Select Chef Logic
-    fallback_chef = chef_map.get("french_classic") 
-    if not fallback_chef:
-         fallback_chef = list(chef_map.values())[0]
 
-    selected_chef = chef_map.get(chef_id, fallback_chef)
-    
-    chef_system_prompt = build_chef_prompt(selected_chef)
+    # Chef Context
+    chef_context = f"You are acting as the Chef ID: {chef_id}."
 
-    # Build Cleanup Guide String
-    cleanup_guide = "\n    CLEANUP FACTOR GUIDE (1-5):"
-    for item in cleanup_data:
-        cleanup_guide += f"\n    - {item['value']}: {item['description']}"
+    # 1. Define the "Perfect Example" string (No ellipses! and adjusted for schema)
+    FEW_SHOT_EXAMPLE = """
+    {
+      "title": "Perfect Seared Salmon",
+      "cuisine": "Mediterranean",
+      "diet": "Pescatarian",
+      "difficulty": "Moderate",
+      "protein_type": "Fish",
+      "meal_types": ["Dinner"],
+      "chef_id": "gourmet",
+      "cleanup_factor": 2,
+      "taste_level": 3,
+      "prep_time_mins": 15,
+      "ingredient_groups": [
+        {
+            "component": "Main", 
+            "ingredients": [
+                {"name": "Salmon Fillet", "amount": 200, "unit": "g"},
+                {"name": "Olive Oil", "amount": 15, "unit": "ml"}
+            ]
+        }
+      ],
+      "instructions": [
+        {"step_number": 1, "phase": "Prep", "text": "Pat the salmon fillets completely dry with paper towels to ensure a crispy skin."},
+        {"step_number": 2, "phase": "Prep", "text": "Season both sides generously with salt and black pepper."},
+        {"step_number": 3, "phase": "Cook", "text": "Heat the olive oil in a non-stick skillet over medium-high heat until shimmering."},
+        {"step_number": 4, "phase": "Cook", "text": "Place salmon skin-side down. Press gently with a spatula for 10 seconds to prevent curling."},
+        {"step_number": 5, "phase": "Cook", "text": "Cook undisturbed for 4-5 minutes until the skin is crispy and releases easily from the pan."},
+        {"step_number": 6, "phase": "Cook", "text": "Flip carefully and cook for another 1-2 minutes until medium-rare."},
+        {"step_number": 7, "phase": "Serve", "text": "Transfer to a plate and let rest for 2 minutes before serving."}
+      ],
+      "chef_note": "Dry skin is the secret to the crunch!"
+    }
+    """
 
     prompt = f"""
-    VIDEO ANALYSIS REQUEST. 
-    Caption: "{caption}"
-
-    {chef_system_prompt}
+    You are a precise Data Engineer Chef.
+    {chef_context}
     
-    TASK: Watch this cooking video and extract the recipe. 
-    Indentify what is being cooked and how.
-    MATCH ingredients to my available pantry list where possible: 
-    {pantry_str}
-
-    CRITICAL: YOU MUST ESTIMATE AMOUNTS.
-    - Resulting amounts MUST be specific numbers (e.g. 200.0, not 0).
-    - If the video doesn't state the amount, USE YOUR CHEF KNOWLEDGE to estimate a reasonable quantity for 2 servings.
-    - Do not output "to taste" or 0 for main ingredients (meat, veg, carbs).
-
-    COMPONENT ARCHITECTURE RULES:
-    1. DEFAULT TO SINGLE COMPONENT: Cohesive dishes (Pasta, Pizza, Burgers, Salads, Soups) must be ONE component.
-       - Valid: "Spaghetti Carbonara" (Everything included).
-    2. SPLIT ONLY FOR DISTINCT MODULES: "Steak" + "Fries".
-    3. NO "MICRO-COMPONENTS".
-
-    INSTRUCTION PHASING RULES:
-    - PREP: Preliminary tasks.
-    - COOK: Heat application or main assembly.
-    - SERVE: Presentation.
-
-    JSON RULES:
-    1. Valid Cuisines: {", ".join(cuisines_data)}
-    2. Valid Diets: {", ".join(diets_data)}
-    3. Valid Difficulties: {", ".join(difficulty_data)}
-    4. Valid Protein Types (Tier 2): {", ".join([p.title() for p in valid_proteins])}
-    5. Valid Meal Types: {", ".join(valid_meal_tags)}
-    6. Exact pantry names (n) required if matched.
-    7. Cleanup Factor: Assign a score 1-5 based on this guide: {cleanup_guide}
+    GOAL: Generate a structured recipe for: "{query}" using these ingredients: {pantry_str}.
     
-    Return the output as a valid JSON object matching this schema:
-    {{
-        "title": "Clean, Simple Title",
-        "cuisine": "Valid Cuisine",
-        "diet": "Valid Diet",
-        "difficulty": "Valid Difficulty",
-        "cleanup_factor": 1,
-        "protein_type": "Valid Specific Protein",
-        "meal_types": ["Tag 1", "Tag 2"],
-        "ingredient_groups": [
-            {{
-                "component": "Main",
-                "ingredients": [
-                    {{"name": "n name", "amount": 0.0, "unit": "u"}}
-                ]
-            }}
-        ],
-        "instructions": [
-            {{"phase": "Prep", "step_number": 1, "text": "Step description."}},
-            {{"phase": "Cook", "step_number": 2, "text": "Step description."}},
-            {{"phase": "Serve", "step_number": 3, "text": "Step description."}}
-        ]
-    }}
+    STRICT OUTPUT RULES:
+    1.  **Granularity**: You MUST generate at least 5-8 separate instruction steps.
+    2.  **Phasing**: Separate "Prep", "Cook", and "Serve" phases explicitly.
+    3.  **Format**: Follow the exact JSON structure of the example below.
+    
+    EXAMPLE OF DESIRED OUTPUT (MIMIC THIS STRUCTURE & DEPTH):
+    {FEW_SHOT_EXAMPLE}
+    
+    Generate the JSON for the user's request now:
     """
-    
-    # 4. Generate Content
-    try:
-        response = client.models.generate_content(
-            model='gemini-2.0-flash', # Vision optimized
-            contents=[file_ref, prompt]
-        )
-        
-        # 5. Cleanup Cloud File
-        print("🧹 Cleaning up cloud file...")
-        try:
-            client.files.delete(name=file_ref.name)
-        except:
-            pass # Non-critical
 
-        # 6. Parse
-        data = extract_json_from_text(response.text)
-        return RecipeSchema(**data)
+    print(f"DEBUG: Using Model 'gemini-flash-latest' with Few-Shot Prompt")
+    
+    response = client.models.generate_content(
+        model='gemini-flash-latest',
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema=RecipeSchema
+        )
+    )
+
+    # === CRITICAL DEBUG LOGGING ===
+    print("\n" + "="*80)
+    print("RAW AI RESPONSE (Full JSON):")
+    print("="*80)
+    print(response.text)
+    print("="*80 + "\n")
+    
+    # Parse and count instructions
+    try:
+        parsed_data = response.parsed if response.parsed else json.loads(response.text)
+        instruction_count = len(parsed_data.get('instructions', []))
+        print(f"🔍 INSTRUCTION COUNT IN AI RESPONSE: {instruction_count}")
+        for idx, instr in enumerate(parsed_data.get('instructions', []), 1):
+            print(f"  Step {idx}: [{instr.get('phase')}] {instr.get('text', '')[:60]}...")
+        print("="*80 + "\n")
+    except Exception as debug_err:
+        print(f"⚠️  Debug parsing failed: {debug_err}")
+    
+    # Original logic
+    try:
+        if response.parsed:
+             # Convert Dict to Object for App Compatibility
+             return RecipeObj(**response.parsed)
         
+        # Fallback if parsed is empty (rare with native schema)
+        data = json.loads(response.text)
+        return RecipeObj(**data)
+
     except Exception as e:
+        print(f"ERROR: Generation failed. Raw output: {response.text[:200]}")
         raise ValueError(f"AI Generation failed: {e}")
 
+# --- Video Generation (Retained for Safety) ---
+def generate_recipe_from_video(video_path: str, caption: str, slim_context: list[dict] = None, chef_id: str = "gourmet"):
+    # Reuse the same schema logic ideally, for now just a stub or basic version
+    # Since user emphasized 'Rewrite entire file', we keep a minimal working version
+    
+    print(f"🎬 Uploading video to Gemini: {video_path}")
+    file_ref = client.files.upload(file=video_path)
+    
+    import time
+    while True:
+        file_info = client.files.get(name=file_ref.name)
+        if file_info.state == "ACTIVE":
+            break
+        elif file_info.state == "FAILED":
+            raise ValueError("Video processing failed")
+        time.sleep(2)
 
-def generate_recipe_from_web_text(raw_text: str, pantry_context: str) -> RecipeSchema:
-    """
-    Extracts a structured recipe from raw webpage text.
-    PERFORMS SILENT INGREDIENT SWAPS based on pantry availability.
-    """
-    if not client:
-        return None
-        
     prompt = f"""
-    You are an expert chef and data engineer.
+    Watch this video and create a structured recipe.
+    Caption: {caption}
+    Chef ID: {chef_id}
     
-    1. EXTRACT: Analyze the following disorganized webpage text and extract the main recipe.
-    2. ADAPT (CRITICAL): The user has a specific pantry. Compare the recipe's required ingredients against this Pantry List:
-    {pantry_context}
-    
-    RULE: If the recipe calls for an ingredient the user DOES NOT have, but they have a valid, reasonable substitute in the pantry, SILENTLY SWAP it in your output.
-    - Example: Recipe needs "Buttermilk". Pantry has "Milk" and "Lemon". Swap to "Milk and Lemon".
-    - Example: Recipe needs "Shallots". Pantry has "Red Onion". Swap to "Red Onion".
-    - If no substitute exists, keep the original ingredient.
-    - Do NOT mention that a swap occurred. Just output the recipe as if it was written that way.
-    
-    3. FORMAT: Output the result strictly as a valid JSON object matching the RecipeSchema.
-    
-    WEBPAGE TEXT:
-    {raw_text}
+    CRITICAL: Follow the same strict multi-step rules:
+    1. At least 5 distinct steps.
+    2. Prep, Cook, Serve phases.
+    3. Estimate numeric amounts for ingredients.
     """
     
-    try:
-        print("DEBUG: Sending prompt to GenAI...")
-        response = client.models.generate_content(
-            model='gemini-2.0-flash-exp',
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type='application/json',
-                response_schema=RecipeSchema
-            )
+    response = client.models.generate_content(
+        model='gemini-flash-latest',
+        contents=[file_ref, prompt],
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema=RecipeSchema
         )
-        print("DEBUG: GenAI response received.")
-        parsed = response.parsed
-        
-        # If SDK auto-parsing fails (sometimes returns None even if text is valid JSON)
-        if parsed is None and response.text:
-             print("DEBUG: Auto-parsing failed. Attempting manual extraction.")
-             data = extract_json_from_text(response.text)
-             return RecipeSchema(**data)
-             
-        return parsed
-    except Exception as e:
-        print(f"Error extracting recipe from web: {e}")
-        try:
-             # Last ditch effort if structured generation failed completely
-             # (Sometimes 400 errors or schema violations cause exceptions)
-             pass
-        except:
-             pass
-        return None
+    )
+    
+    if response.parsed:
+        return RecipeObj(**response.parsed)
+    return RecipeObj(**json.loads(response.text))

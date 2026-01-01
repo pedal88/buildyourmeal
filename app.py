@@ -1,7 +1,7 @@
 import os
 import uuid
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
-from database.models import db, Ingredient, Recipe, Instruction, RecipeIngredient
+from database.models import db, Ingredient, Recipe, Instruction, RecipeIngredient, RecipeMealType
 from sqlalchemy import or_
 from services.pantry_service import get_slim_pantry_context
 from ai_engine import generate_recipe_ai, get_pantry_id, chefs_data, generate_recipe_from_web_text
@@ -528,10 +528,9 @@ def recipes_list():
              stmt = stmt.where(or_(*clauses))
 
     if selected_meal_types:
-        # JSON list contains check. We want recipes that match ANY of the selected types.
-        clauses = [Recipe.meal_types.like(f'%"{m}"%') for m in selected_meal_types]
-        if clauses:
-            stmt = stmt.where(or_(*clauses))
+        # Filter by related RecipeMealType
+        # We want recipes that have ANY of the selected tags
+        stmt = stmt.where(Recipe.meal_types.any(RecipeMealType.meal_type.in_(selected_meal_types)))
 
     recipes = db.session.execute(stmt).scalars().all()
 
@@ -602,9 +601,7 @@ def recipes_table_view():
         if clauses:
              stmt = stmt.where(or_(*clauses))
     if selected_meal_types:
-        clauses = [Recipe.meal_types.like(f'%"{m}"%') for m in selected_meal_types]
-        if clauses:
-            stmt = stmt.where(or_(*clauses))
+        stmt = stmt.where(Recipe.meal_types.any(RecipeMealType.meal_type.in_(selected_meal_types)))
 
     # Apply Sorting
     valid_cols = {
@@ -749,10 +746,18 @@ def generate_web_recipe():
                 cleanup_factor=recipe_data.cleanup_factor or 3,
                 protein_type=recipe_data.protein_type,
                 image_filename=final_image_filename,
-                meal_types=json.dumps(recipe_data.meal_types) if recipe_data.meal_types else "[]"
+                # meal_types=json.dumps(recipe_data.meal_types) # DEPRECATED
+                chef_id=recipe_data.chef_id,
+                taste_level=recipe_data.taste_level,
+                prep_time_mins=recipe_data.prep_time_mins
             )
             db.session.add(new_recipe)
             db.session.flush()
+            
+            # Save Meal Types
+            if recipe_data.meal_types:
+                for mt in recipe_data.meal_types:
+                    db.session.add(RecipeMealType(recipe_id=new_recipe.id, meal_type=mt))
             
             # Save Instructions
             for phase_group in recipe_data.instructions:
@@ -815,10 +820,19 @@ def generate():
             diet=recipe_data.diet,
             difficulty=recipe_data.difficulty,
             protein_type=recipe_data.protein_type,
-            meal_types=json.dumps(recipe_data.meal_types)
+            # meal_types=json.dumps(recipe_data.meal_types) # DEPRECATED
+            chef_id=recipe_data.chef_id,
+            taste_level=recipe_data.taste_level,
+            prep_time_mins=recipe_data.prep_time_mins,
+            cleanup_factor=recipe_data.cleanup_factor
         )
         db.session.add(new_recipe)
         db.session.flush() # Get ID
+        
+        # Save Meal Types
+        if recipe_data.meal_types:
+            for mt in recipe_data.meal_types:
+                db.session.add(RecipeMealType(recipe_id=new_recipe.id, meal_type=mt))
         
         # Ingredients
         # Ingredients
@@ -857,14 +871,15 @@ def generate():
                 text=instr.text
             )
             db.session.add(new_instr)
-            
-            db.session.commit()
-            
-            # 4. Calculate Nutrition
-            from services.nutrition_service import calculate_nutritional_totals
-            calculate_nutritional_totals(new_recipe.id)
-            
-            return redirect(url_for('recipe_detail', recipe_id=new_recipe.id))
+        
+        # Commit AFTER all instructions are added
+        db.session.commit()
+        
+        # 4. Calculate Nutrition
+        from services.nutrition_service import calculate_nutritional_totals
+        calculate_nutritional_totals(new_recipe.id)
+        
+        return redirect(url_for('recipe_detail', recipe_id=new_recipe.id))
         
     except ValueError as ve:
          flash(f"Validation Error: {str(ve)}", "error")
