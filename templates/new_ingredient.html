@@ -1,0 +1,573 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="relative overflow-hidden bg-slate-900 py-12">
+    <!-- Abstract Background -->
+    <div
+        class="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1606787366850-de6330128bfc?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80')] bg-cover bg-center opacity-10 mix-blend-overlay">
+    </div>
+    <div class="absolute inset-0 bg-gradient-to-b from-slate-900/50 via-slate-900/80 to-slate-900"></div>
+
+    <div class="relative mx-auto max-w-3xl px-6 lg:px-8 text-center">
+        <h1 class="font-serif text-3xl font-bold tracking-tight text-white mb-4">
+            New Ingredient
+        </h1>
+        <p class="text-slate-400 text-sm">
+            Expand your digital pantry with AI-assisted data entry.
+        </p>
+    </div>
+</div>
+
+<div class="bg-slate-50 py-12 min-h-screen">
+    <div class="mx-auto max-w-5xl px-6 lg:px-8">
+
+        <!-- STEP 1: Search / Prompt -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-8 max-w-3xl mx-auto">
+            <label class="block text-sm font-medium text-slate-700 mb-2">What do you want to add?</label>
+            <div class="relative flex gap-2">
+                <input type="text" id="userInput"
+                    class="block w-full rounded-md border-slate-300 py-3 pl-4 pr-12 text-slate-900 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm"
+                    placeholder="e.g. 'Organic Gala Apples' or 'Sourdough Bread'"
+                    onkeydown="if(event.key === 'Enter') checkDuplicates()">
+                <button type="button" onclick="checkDuplicates()" id="btnSearch"
+                    class="rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-700 transition-colors">
+                    Check
+                </button>
+            </div>
+            <p class="mt-2 text-xs text-slate-500">We'll check for duplicates first.</p>
+        </div>
+
+        <!-- STEP 2: Results & Actions -->
+        <div id="resultsSection" class="hidden space-y-6 max-w-3xl mx-auto">
+
+            <!-- Existing Matches -->
+            <div id="duplicatesCard" class="bg-orange-50 rounded-xl border border-orange-100 p-6 hidden">
+                <div class="flex items-start gap-3">
+                    <div class="text-orange-600 mt-1">
+                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                        </svg>
+                    </div>
+                    <div class="w-full">
+                        <h3 class="text-sm font-semibold text-orange-900">Similar items found</h3>
+                        <p class="text-xs text-orange-700 mt-1">Did you mean one of these?</p>
+                        <div id="resultsList" class="mt-3 divide-y divide-orange-200/50">
+                            <!-- JS Populated -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Create New Actions -->
+            <div id="createNewAction" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 text-center">
+                <div id="noResultsMsg" class="hidden mb-4">
+                    <div
+                        class="inline-flex items-center justify-center w-10 h-10 rounded-full bg-green-100 text-green-600 mb-2">
+                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                    </div>
+                    <p class="text-sm font-medium text-slate-900">No duplicates found!</p>
+                </div>
+
+                <h3 class="text-lg font-serif font-bold text-slate-900 mb-2">Add New Ingredient</h3>
+                <p class="text-slate-500 text-sm mb-6">Use AI to automatically fill out nutrition, category, and unit
+                    details.</p>
+
+                <button type="button" onclick="analyzeIngredient()" id="btnAnalyze"
+                    class="inline-flex items-center gap-2 rounded-full bg-orange-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-orange-500 transition-all hover:scale-105">
+                    <span id="spinnerAnalyze"
+                        class="hidden animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
+                    <span>✨ Auto-Fill Details</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- STEP 3: Edit & Save Form -->
+        <div id="editSection" class="hidden mt-8 transition-all duration-500">
+            <div class="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
+                <div class="bg-slate-50 border-b border-slate-200 px-6 py-4 flex items-center justify-between">
+                    <div>
+                        <h3 class="text-base font-semibold text-slate-900">Review & Save</h3>
+                        <p class="text-xs text-slate-500">AI has proposed the following data.</p>
+                    </div>
+                    <span
+                        class="inline-flex items-center rounded-md bg-purple-50 px-2 py-1 text-xs font-medium text-purple-700 ring-1 ring-inset ring-purple-700/10">AI
+                        Generated</span>
+                </div>
+
+                <div class="p-6">
+                    <form id="ingredientForm">
+                        <div class="grid grid-cols-1 md:grid-cols-12 gap-8">
+
+                            <!-- LEFT COLUMN: IMAGE Grid (4 cols on lg screens if we want, but let's do 4/12 split) -->
+                            <div class="md:col-span-5 lg:col-span-4">
+                                <label
+                                    class="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Select
+                                    Best Image</label>
+
+                                <!-- GRID OF 4 IMAGES -->
+                                <div id="imageGrid" class="grid grid-cols-2 gap-3 mb-3">
+                                    <!-- Populated via JS -->
+                                    <!-- Placeholder / Loading State -->
+                                    <div
+                                        class="col-span-2 aspect-[4/3] bg-slate-100 rounded-lg border-2 border-dashed border-slate-300 flex items-center justify-center p-4">
+                                        <div id="imagePlaceholder" class="text-slate-400 text-center">
+                                            <span class="text-xs">Generating 4 variants...</span>
+                                            <div id="spinnerImage"
+                                                class="mt-2 animate-spin h-5 w-5 border-2 border-orange-600 border-t-transparent rounded-full mx-auto">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mt-3">
+                                    <label for="imagePrompt"
+                                        class="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Image
+                                        Prompt</label>
+                                    <textarea id="imagePrompt" rows="3"
+                                        class="block w-full rounded-md border-slate-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 text-xs text-slate-600"
+                                        placeholder="AI will generate a prompt here..."></textarea>
+                                </div>
+
+                                <div class="mt-3 text-center">
+                                    <button type="button" id="btnGenImage" onclick="generateImage()"
+                                        class="inline-flex items-center gap-2 rounded-md bg-white px-3 py-2 text-xs font-semibold text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50 w-full justify-center">
+                                        <svg class="h-4 w-4 text-purple-600" fill="none" viewBox="0 0 24 24"
+                                            stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                        </svg>
+                                        Regenerate Images (AI)
+                                    </button>
+                                </div>
+                                <input type="hidden" id="tempImageFilename">
+                            </div>
+
+                            <!-- RIGHT COLUMNS: DATA -->
+                            <div class="md:col-span-7 lg:col-span-8">
+                                <div class="grid grid-cols-1 gap-x-6 gap-y-6 sm:grid-cols-6">
+
+                                    <!-- Identity -->
+                                    <div class="sm:col-span-6">
+                                        <label for="ingName"
+                                            class="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Name</label>
+                                        <input type="text" id="ingName"
+                                            class="block w-full rounded-md border-0 py-2.5 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-orange-600 sm:text-lg font-semibold sm:leading-6">
+                                    </div>
+
+                                    <div class="sm:col-span-3">
+                                        <label for="mainCategory"
+                                            class="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Category</label>
+                                        <select id="mainCategory" onchange="updateSubCategories()"
+                                            class="block w-full rounded-md border-0 py-2 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-inset focus:ring-orange-600 sm:text-sm sm:leading-6">
+                                            <option value="" selected disabled>Select...</option>
+                                            {% for cat in main_categories %}
+                                            <option value="{{ cat }}">{{ cat | title }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+
+                                    <div class="sm:col-span-3">
+                                        <label for="subCategory"
+                                            class="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Sub
+                                            Category</label>
+                                        <select id="subCategory"
+                                            class="block w-full rounded-md border-0 py-2 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-inset focus:ring-orange-600 sm:text-sm sm:leading-6">
+                                            <option value="" selected>Select Main Category First</option>
+                                        </select>
+                                    </div>
+
+                                    <!-- Measurement -->
+                                    <div class="sm:col-span-3">
+                                        <label for="unit"
+                                            class="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Unit</label>
+                                        <select id="unit"
+                                            class="block w-full rounded-md border-0 py-2 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-inset focus:ring-orange-600 sm:text-sm sm:leading-6">
+                                            <option value="g">Grams (g)</option>
+                                            <option value="ml">Milliliters (ml)</option>
+                                            <option value="pcs">Pieces (pcs)</option>
+                                            <option value="slice">Slice</option>
+                                            <option value="cup">Cup</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="sm:col-span-3">
+                                        <label for="avgGrams"
+                                            class="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Gram
+                                            Weight (If Unit)</label>
+                                        <div class="relative rounded-md shadow-sm">
+                                            <input type="number" step="0.1" id="avgGrams"
+                                                class="block w-full rounded-md border-0 py-1.5 pr-10 text-slate-900 ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-orange-600 sm:text-sm sm:leading-6">
+                                            <div
+                                                class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+                                                <span class="text-gray-500 sm:text-sm">g</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="sm:col-span-6 border-t border-slate-100 my-2"></div>
+
+                                    <!-- Nutrition -->
+                                    <div class="sm:col-span-6">
+                                        <h4 class="text-sm font-semibold text-slate-900 mb-3">Nutrition (per 100g)</h4>
+                                        <div class="grid grid-cols-4 gap-4">
+                                            <div>
+                                                <label class="block text-xs text-slate-500 mb-1">Calories</label>
+                                                <input type="number" id="cal"
+                                                    class="block w-full rounded-md border-slate-300 text-sm py-1.5 focus:border-orange-500 focus:ring-orange-500">
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs text-slate-500 mb-1">Protein</label>
+                                                <input type="number" step="0.1" id="protein"
+                                                    class="block w-full rounded-md border-slate-300 text-sm py-1.5 focus:border-orange-500 focus:ring-orange-500">
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs text-slate-500 mb-1">Fat</label>
+                                                <input type="number" step="0.1" id="fat"
+                                                    class="block w-full rounded-md border-slate-300 text-sm py-1.5 focus:border-orange-500 focus:ring-orange-500">
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs text-slate-500 mb-1">Carbs</label>
+                                                <input type="number" step="0.1" id="carbs"
+                                                    class="block w-full rounded-md border-slate-300 text-sm py-1.5 focus:border-orange-500 focus:ring-orange-500">
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <!-- Hidden Fields for Advanced Macros -->
+                        <input type="hidden" id="sugar" value="0">
+                        <input type="hidden" id="fiber" value="0">
+                        <input type="hidden" id="satFat" value="0">
+                        <input type="hidden" id="sodium" value="0">
+
+                        <div class="mt-8 flex items-center justify-end gap-3 pt-6 border-t border-slate-100">
+                            <button type="button" onclick="window.location.reload()"
+                                class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50">
+                                Cancel
+                            </button>
+                            <button type="button" onclick="saveIngredient()"
+                                class="rounded-md bg-slate-900 px-6 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">
+                                Approve & Save
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    // Pass sub-categories map from server to JS
+    const SUB_CATEGORIES_MAP = {{ sub_categories_map | tojson }};
+
+    function updateSubCategories(selectedSub = null) {
+        const mainCat = document.getElementById('mainCategory').value;
+        const subCatSelect = document.getElementById('subCategory');
+
+        // Clear existing
+        subCatSelect.innerHTML = '<option value="" selected disabled>Select...</option>';
+
+        if (mainCat && SUB_CATEGORIES_MAP[mainCat]) {
+            SUB_CATEGORIES_MAP[mainCat].forEach(sub => {
+                const option = document.createElement('option');
+                option.value = sub;
+                option.text = titleCase(sub);
+                if (selectedSub && sub.toLowerCase() === selectedSub.toLowerCase()) {
+                    option.selected = true;
+                }
+                subCatSelect.appendChild(option);
+            });
+        } else {
+            const option = document.createElement('option');
+            option.value = 'other';
+            option.text = 'Other';
+            subCatSelect.appendChild(option);
+        }
+    }
+
+    function titleCase(str) {
+        return str.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
+    }
+
+    async function checkDuplicates() {
+        const query = document.getElementById('userInput').value;
+        if (!query) return;
+
+        // UI Reset
+        document.getElementById('editSection').classList.add('hidden');
+
+        const btn = document.getElementById('btnSearch');
+        const originalText = btn.innerText;
+        btn.innerText = 'Checking...';
+        btn.disabled = true;
+
+        try {
+            const response = await fetch('/api/search-ingredients', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query: query })
+            });
+            const res = await response.json();
+
+            const list = document.getElementById('resultsList');
+            list.innerHTML = '';
+
+            if (res.results.length > 0) {
+                document.getElementById('duplicatesCard').classList.remove('hidden');
+                document.getElementById('noResultsMsg').classList.add('hidden');
+
+                res.results.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = "py-2 flex justify-between items-center";
+                    div.innerHTML = `
+                    <span class="text-sm font-medium text-slate-900">${item.name}</span>
+                    <span class="text-xs text-slate-500 bg-white px-2 py-1 rounded border border-slate-200">${item.category || 'Uncategorized'}</span>
+                `;
+                    list.appendChild(div);
+                });
+            } else {
+                document.getElementById('duplicatesCard').classList.add('hidden');
+                document.getElementById('noResultsMsg').classList.remove('hidden');
+            }
+
+            document.getElementById('resultsSection').classList.remove('hidden');
+
+        } catch (e) {
+            console.error(e);
+            alert("Search failed");
+        } finally {
+            btn.innerText = originalText;
+            btn.disabled = false;
+        }
+    }
+
+    async function analyzeIngredient() {
+        const prompt = document.getElementById('userInput').value;
+        const btn = document.getElementById('btnAnalyze');
+        const spinner = document.getElementById('spinnerAnalyze');
+
+        btn.disabled = true;
+        spinner.classList.remove('hidden');
+
+        try {
+            const response = await fetch('/api/analyze-ingredient', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt: prompt })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                populateForm(result.data);
+
+                // Show Form
+                document.getElementById('resultsSection').classList.add('hidden');
+                document.getElementById('editSection').classList.remove('hidden');
+
+                // Scroll to form
+                document.getElementById('editSection').scrollIntoView({ behavior: 'smooth' });
+
+                // AUTO START IMAGE GENERATION
+                // We give a small delay so the user sees the form open
+                setTimeout(() => {
+                    generateImage();
+                }, 500);
+
+            } else {
+                alert('AI Analysis failed: ' + result.error);
+            }
+
+        } catch (error) {
+            console.error(error);
+            alert('An error occurred during analysis.');
+        } finally {
+            btn.disabled = false;
+            spinner.classList.add('hidden');
+        }
+    }
+
+    function populateForm(d) {
+        document.getElementById('ingName').value = d.name || '';
+
+        // Set Main Category
+        const mainCatSelect = document.getElementById('mainCategory');
+        mainCatSelect.value = d.main_category || '';
+
+        // Trigger Sub Category Update
+        updateSubCategories(d.sub_category);
+
+        document.getElementById('unit').value = d.unit || 'g';
+        document.getElementById('avgGrams').value = d.average_g_per_unit || '';
+
+        document.getElementById('cal').value = d.calories_per_100g || 0;
+        document.getElementById('protein').value = d.protein_per_100g || 0;
+        document.getElementById('fat').value = d.fat_per_100g || 0;
+        document.getElementById('carbs').value = d.carbs_per_100g || 0;
+
+        document.getElementById('imagePrompt').value = d.image_prompt || '';
+
+        // Fill hidden fields if available
+        document.getElementById('sugar').value = d.sugar_per_100g || 0;
+        document.getElementById('fiber').value = d.fiber_per_100g || 0;
+        document.getElementById('satFat').value = d.fat_saturated_per_100g || 0;
+        document.getElementById('sodium').value = d.sodium_mg_per_100g || 0;
+    }
+
+    // Global Image Store
+    let GENERATED_IMAGES = [];
+
+    async function generateImage() {
+        const prompt = document.getElementById('imagePrompt').value;
+        if (!prompt) { alert("No image prompt available."); return; }
+
+        const btn = document.getElementById('btnGenImage');
+        const grid = document.getElementById('imageGrid');
+
+        // Reset Grid
+        grid.innerHTML = `
+        <div class="col-span-2 aspect-[4/3] bg-slate-100 rounded-lg border-2 border-dashed border-slate-300 flex items-center justify-center p-4">
+             <div class="text-slate-400 text-center">
+                <span class="text-xs">Generating 4 variants...</span>
+                <div class="mt-2 animate-spin h-5 w-5 border-2 border-orange-600 border-t-transparent rounded-full mx-auto"></div>
+            </div>
+        </div>`;
+
+        btn.disabled = true;
+
+        try {
+            const response = await fetch('/api/generate-ingredient-image', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt: prompt })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                GENERATED_IMAGES = result.images;
+                renderImageGrid(result.images);
+
+                // Default select the first one
+                if (result.images.length > 0) {
+                    selectImage(0);
+                }
+
+            } else {
+                alert('Image Generation failed: ' + result.error);
+                grid.innerHTML = `<div class="col-span-2 text-xs text-red-500 p-2">Failed: ${result.error}</div>`;
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Generation failed');
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    function renderImageGrid(images) {
+        const grid = document.getElementById('imageGrid');
+        grid.innerHTML = '';
+
+        images.forEach((img, index) => {
+            const div = document.createElement('div');
+            div.className = "relative aspect-square rounded-lg overflow-hidden cursor-pointer group border-2 border-transparent hover:border-orange-300 transition-all";
+            div.onclick = () => selectImage(index);
+            div.id = `img-box-${index}`;
+
+            div.innerHTML = `
+            <img src="${img.url}" class="w-full h-full object-cover">
+            <!-- Selected Checkmark Overlay -->
+            <div id="check-${index}" class="absolute inset-0 bg-orange-500/20 hidden flex items-center justify-center">
+                <div class="bg-orange-600 text-white rounded-full p-1 shadow-lg">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                </div>
+            </div>
+        `;
+            grid.appendChild(div);
+        });
+    }
+
+    function selectImage(index) {
+        // 1. Update Hidden Field
+        const imgData = GENERATED_IMAGES[index];
+        document.getElementById('tempImageFilename').value = imgData.filename;
+
+        // 2. Update Visuals
+        GENERATED_IMAGES.forEach((_, idx) => {
+            const box = document.getElementById(`img-box-${idx}`);
+            const check = document.getElementById(`check-${idx}`);
+
+            if (idx === index) {
+                box.classList.add('border-orange-500');
+                box.classList.remove('border-transparent');
+                check.classList.remove('hidden');
+            } else {
+                box.classList.remove('border-orange-500');
+                box.classList.add('border-transparent');
+                check.classList.add('hidden');
+            }
+        });
+    }
+
+    async function saveIngredient() {
+        const name = document.getElementById('ingName').value;
+        const mainCat = document.getElementById('mainCategory').value;
+
+        if (!name) { alert("Please enter a name."); return; }
+        if (!mainCat) { alert("Please select a main category."); return; }
+
+        const data = {
+            name: name,
+            main_category: mainCat,
+            sub_category: document.getElementById('subCategory').value,
+            unit: document.getElementById('unit').value,
+            average_g_per_unit: parseFloat(document.getElementById('avgGrams').value) || null,
+
+            calories_per_100g: parseFloat(document.getElementById('cal').value) || 0,
+            protein_per_100g: parseFloat(document.getElementById('protein').value) || 0,
+            fat_per_100g: parseFloat(document.getElementById('fat').value) || 0,
+            carbs_per_100g: parseFloat(document.getElementById('carbs').value) || 0,
+
+            sugar_per_100g: parseFloat(document.getElementById('sugar').value) || 0,
+            fiber_per_100g: parseFloat(document.getElementById('fiber').value) || 0,
+            fat_saturated_per_100g: parseFloat(document.getElementById('satFat').value) || 0,
+            sodium_mg_per_100g: parseFloat(document.getElementById('sodium').value) || 0,
+
+            image_prompt: document.getElementById('imagePrompt').value,
+            temp_image_filename: document.getElementById('tempImageFilename').value
+        };
+
+        try {
+            const response = await fetch('/api/save-ingredient', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                alert('Ingredient saved!');
+                window.location.href = '/ingredients';
+            } else {
+                alert('Error saving: ' + result.error);
+            }
+        } catch (error) {
+            console.error(error);
+            alert('Failed to save ingredient.');
+        }
+    }
+</script>
+{% endblock %}

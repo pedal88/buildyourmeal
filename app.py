@@ -4,13 +4,16 @@ from flask import Flask, render_template, request, redirect, url_for, flash, jso
 from database.models import db, Ingredient, Recipe, Instruction, RecipeIngredient, RecipeMealType
 from sqlalchemy import or_
 from services.pantry_service import get_slim_pantry_context
-from ai_engine import generate_recipe_ai, get_pantry_id, chefs_data, generate_recipe_from_web_text
+from ai_engine import generate_recipe_ai, get_pantry_id, chefs_data, generate_recipe_from_web_text, analyze_ingredient_ai
 from services.photographer_service import generate_visual_prompt, generate_actual_image, generate_visual_prompt_from_image, load_photographer_config, generate_image_variation, process_external_image
+from services.vertex_image_service import VertexImageGenerator
 from services.web_scraper_service import WebScraper
 from utils.image_helpers import generate_ingredient_placeholder
 import base64
 from io import BytesIO
 import shutil
+import datetime
+from sqlalchemy import func
 
 app = Flask(__name__)
 
@@ -688,6 +691,261 @@ def toggle_basic_ingredient(id):
         'name': ing.name
     })
 
+# --- New Ingredient Workflow ---
+
+@app.route('/new-ingredient', methods=['GET'])
+@app.route('/new-ingredient', methods=['GET'])
+def new_ingredient_view():
+    # Load categories for the dropdown in the template (manually or via API)
+    # We can pass them to the template
+    data_dir = os.path.join(app.root_path, 'data', 'constraints')
+    with open(os.path.join(data_dir, 'categories.json'), 'r') as f:
+        category_data = json.load(f)
+        
+    return render_template('new_ingredient.html', 
+                         main_categories=category_data.get('main_categories', []),
+                         sub_categories_map=category_data.get('sub_categories', {}))
+
+@app.route('/api/search-ingredients', methods=['POST'])
+def search_ingredients_api():
+    try:
+        data = request.get_json()
+        query = data.get('query', '').strip()
+        
+        if not query or len(query) < 2:
+            return jsonify({'success': True, 'results': []})
+            
+        # Search for name matches (ILIKE)
+        results = db.session.execute(
+            db.select(Ingredient)
+            .where(Ingredient.name.ilike(f"%{query}%"))
+            .order_by(Ingredient.name)
+            .limit(10)
+        ).scalars().all()
+        
+        # Serialize results
+        items = [{
+            'id': i.id,
+            'name': i.name, 
+            'category': i.main_category,
+            'food_id': i.food_id
+        } for i in results]
+        
+        return jsonify({'success': True, 'results': items})
+        
+    except Exception as e:
+        print(f"Search API Error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/analyze-ingredient', methods=['POST'])
+def analyze_ingredient_api():
+    try:
+        data = request.get_json()
+        prompt = data.get('prompt')
+        
+        if not prompt:
+            return jsonify({'success': False, 'error': 'Prompt is required'})
+            
+        # Load validation constraints
+        data_dir = os.path.join(app.root_path, 'data', 'constraints')
+        with open(os.path.join(data_dir, 'categories.json'), 'r') as f:
+            valid_categories = json.load(f)
+            
+        # Call AI Engine
+        analysis = analyze_ingredient_ai(prompt, valid_categories)
+        
+        return jsonify({'success': True, 'data': analysis})
+        
+    except Exception as e:
+        print(f"Analysis API Error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/generate-ingredient-image', methods=['POST'])
+def generate_ingredient_image_api():
+    try:
+        data = request.get_json()
+        prompt = data.get('prompt')
+        if not prompt:
+            return jsonify({'success': False, 'error': 'No prompt provided'})
+
+        # Generate 4 Images
+        images_list = generate_actual_image(prompt, number_of_images=4)
+        
+        results = []
+        temp_dir = os.path.join(app.root_path, 'static', 'temp')
+        os.makedirs(temp_dir, exist_ok=True)
+        
+        for img in images_list:
+            filename = f"ing_temp_{uuid.uuid4().hex}.png"
+            img.save(os.path.join(temp_dir, filename))
+            results.append({
+                'url': url_for('static', filename=f'temp/{filename}'),
+                'filename': filename
+            })
+        
+        return jsonify({
+            'success': True, 
+            'images': results
+        })
+        
+    except Exception as e:
+        print(f"Image Gen Error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/ingredient/<int:id>', methods=['GET'])
+def get_ingredient_details_api(id):
+    try:
+        ingredient = db.session.get(Ingredient, id)
+        if not ingredient:
+            return jsonify({'success': False, 'error': 'Ingredient not found'}), 404
+            
+        return jsonify({
+            'success': True,
+            'id': ingredient.id,
+            'name': ingredient.name,
+            'image_prompt': ingredient.image_prompt or "No prompt available."
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/ingredient/<int:id>', methods=['DELETE'])
+def delete_ingredient_api(id):
+    try:
+        ingredient = db.session.get(Ingredient, id)
+        if not ingredient:
+            return jsonify({'success': False, 'error': 'Ingredient not found'}), 404
+            
+        # Check usage in recipes
+        if ingredient.recipe_ingredients:
+            count = len(ingredient.recipe_ingredients)
+            return jsonify({
+                'success': False, 
+                'error': f"Cannot delete '{ingredient.name}' because it is used in {count} recipes."
+            }), 400
+            
+        db.session.delete(ingredient)
+        db.session.commit()
+        
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/update-ingredient-image', methods=['POST'])
+def update_ingredient_image_api():
+    try:
+        data = request.get_json()
+        ing_id = data.get('id')
+        temp_filename = data.get('temp_filename')
+        image_prompt = data.get('image_prompt')
+        
+        if not ing_id or not temp_filename:
+            return jsonify({'success': False, 'error': 'Missing ID or Image'}), 400
+            
+        ingredient = db.session.get(Ingredient, ing_id)
+        if not ingredient:
+            return jsonify({'success': False, 'error': 'Ingredient not found'}), 404
+
+        # Move File
+        src_path = os.path.join(app.root_path, 'static', 'temp', temp_filename)
+        if not os.path.exists(src_path):
+             return jsonify({'success': False, 'error': 'Temp image not found'}), 404
+             
+        # Create new unique name to bust cache
+        new_filename = f"{ingredient.food_id}_{uuid.uuid4().hex[:8]}.png"
+        dst_path = os.path.join(app.root_path, 'static', 'pantry', new_filename)
+        
+        # Remove old image if it exists and isn't used by others? 
+        # For now, let's just save the new one. Clean up later.
+        
+        shutil.move(src_path, dst_path)
+        
+        # Update DB
+        ingredient.image_url = f"pantry/{new_filename}"
+        if image_prompt:
+            ingredient.image_prompt = image_prompt
+            
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'new_image_url': url_for('static', filename=ingredient.image_url)
+        })
+
+    except Exception as e:
+        print(f"Update Image Error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/save-ingredient', methods=['POST'])
+def save_new_ingredient_api():
+    try:
+        data = request.get_json()
+        
+        # 1. Generate Unique ID
+        all_ids = db.session.execute(db.select(Ingredient.food_id)).scalars().all()
+        max_id = 0
+        for fid in all_ids:
+            if fid.isdigit():
+                val = int(fid)
+                if val > max_id:
+                    max_id = val
+        
+        new_id_int = max_id + 1
+        new_food_id = f"{new_id_int:06d}" 
+        
+        # 2. Handle Image
+        image_url = None
+        temp_filename = data.get('temp_image_filename')
+        if temp_filename:
+            # Move from temp to pantry
+            src = os.path.join(app.root_path, 'static', 'temp', temp_filename)
+            if os.path.exists(src):
+                # We use the food_id for the filename: 000123.png
+                new_filename = f"{new_food_id}.png"
+                dst_dir = os.path.join(app.root_path, 'static', 'pantry')
+                os.makedirs(dst_dir, exist_ok=True)
+                
+                dst = os.path.join(dst_dir, new_filename)
+                shutil.move(src, dst)
+                
+                image_url = f"pantry/{new_filename}"
+
+        # 3. Create Object
+        new_ing = Ingredient(
+            food_id=new_food_id,
+            name=data.get('name'),
+            main_category=data.get('main_category'),
+            sub_category=data.get('sub_category'),
+            default_unit=data.get('unit'),
+            average_g_per_unit=data.get('average_g_per_unit'),
+            
+            # Nutrition
+            calories_per_100g=data.get('calories_per_100g'),
+            protein_per_100g=data.get('protein_per_100g'),
+            fat_per_100g=data.get('fat_per_100g'),
+            carbs_per_100g=data.get('carbs_per_100g'),
+            sugar_per_100g=data.get('sugar_per_100g'),
+            fiber_per_100g=data.get('fiber_per_100g'),
+            sodium_mg_per_100g=data.get('sodium_mg_per_100g'),
+            fat_saturated_per_100g=data.get('fat_saturated_per_100g'),
+            
+            # Metadata
+            image_prompt=data.get('image_prompt'),
+            image_url=image_url,
+            is_original=False,
+            created_at=datetime.datetime.now().isoformat()
+        )
+        
+        db.session.add(new_ing)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'food_id': new_food_id})
+        
+    except Exception as e:
+        print(f"Save Ingredient Error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/generate/web', methods=['POST'])
 def generate_web_recipe():
     blog_url = request.form.get('blog_url')
@@ -1056,6 +1314,69 @@ def generate_from_video():
         # If download succeeds but AI fails, we catch here.
         flash(f"Error processing video: {str(e)}", "error")
         return redirect(url_for('index'))
+
+
+# --- INGREDIENT DASHBOARD ROUTES ---
+@app.route('/ingredient-images')
+def ingredient_dashboard():
+    # 1. Load Pantry
+    pantry_path = os.path.join(app.root_path, 'data', 'constraints', 'pantry.json')
+    with open(pantry_path, 'r') as f:
+        pantry_items = json.load(f)
+    
+    # 2. Check for Candidates
+    generator = VertexImageGenerator(root_path=app.root_path)
+    # We populate the candidate status for each item
+    for item in pantry_items:
+        safe_name = generator._get_safe_filename(item['food_name'])
+        candidate_path = os.path.join(generator.candidates_dir, safe_name)
+        item['has_candidate'] = os.path.exists(candidate_path)
+        item['candidate_url'] = f"/static/pantry/candidates/{safe_name}" if item['has_candidate'] else None
+        
+        # Ensure image_url is fully qualified for display if it's relative
+        if 'images' in item and item['images'].get('image_url'):
+             if not item['images']['image_url'].startswith('/'):
+                 item['images']['image_url'] = f"/static/{item['images']['image_url']}"
+                 
+        # 3. Check for Originals (Locked Assets)
+        # We assume original filename matches current filename (based on migration strategy)
+        if 'images' in item and item['images'].get('image_url'):
+            current_url = item['images']['image_url'] # e.g. /static/pantry/000001.png
+            basename = os.path.basename(current_url)
+            original_path = os.path.join(app.root_path, 'static', 'pantry', 'originals', basename)
+            if os.path.exists(original_path):
+                item['original_url'] = f"/static/pantry/originals/{basename}"
+            else:
+                 item['original_url'] = None
+
+    return render_template('ingredient_dashboard.html', ingredients=pantry_items)
+
+@app.route('/api/generate-ingredient-image', methods=['POST'])
+def generate_ingredient_image():
+    data = request.json
+    ingredient_name = data.get('ingredient_name')
+    prompt = data.get('prompt')
+    
+    if not ingredient_name or not prompt:
+        return jsonify({'success': False, 'error': 'Missing name or prompt'})
+        
+    generator = VertexImageGenerator(root_path=app.root_path)
+    result = generator.generate_candidate(ingredient_name, prompt)
+    
+    return jsonify(result)
+
+@app.route('/api/approve-ingredient-image', methods=['POST'])
+def approve_ingredient_image():
+    data = request.json
+    ingredient_name = data.get('ingredient_name')
+    
+    if not ingredient_name:
+        return jsonify({'success': False, 'error': 'Missing ingredient name'})
+        
+    generator = VertexImageGenerator(root_path=app.root_path)
+    result = generator.approve_candidate(ingredient_name)
+    
+    return jsonify(result)
 
 if __name__ == '__main__':
     with app.app_context():

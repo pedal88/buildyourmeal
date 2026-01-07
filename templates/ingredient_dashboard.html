@@ -1,0 +1,248 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-orange-500 to-red-600">
+            Ingredient Image Dashboard (Vertex AI / Imagen 3)
+        </h1>
+        <div class="text-sm text-gray-500">
+            Human-in-the-Loop Asset Review
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left">
+                <thead class="bg-gray-50 text-gray-700 uppercase text-xs">
+                    <tr>
+                        <th class="px-6 py-4 font-semibold w-1/5">Ingredient</th>
+                        <th class="px-6 py-4 font-semibold w-2/5">Prompt (Imagen 3)</th>
+                        <th class="px-6 py-4 font-semibold text-center w-1/5">Original Asset</th>
+                        <th class="px-6 py-4 font-semibold text-center w-1/5">Current Asset</th>
+                        <th class="px-6 py-4 font-semibold text-center w-1/5">Candidate (Staging)</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for item in ingredients %}
+                    <tr class="hover:bg-gray-50 transition-colors" data-ingredient="{{ item.food_name }}">
+                        <!-- Column 1: Ingredient Info -->
+                        <td class="px-6 py-4">
+                            <div class="font-bold text-gray-900">{{ item.food_name | title }}</div>
+                            <div class="text-xs text-gray-400 font-mono mt-1">ID: {{ item.food_id }}</div>
+                        </td>
+
+                        <!-- Column 2: Prompt -->
+                        <td class="px-6 py-4">
+                            {% set prompt = item.images.image_prompt if item.images else "Professional food photography
+                            of " + item.food_name + "..." %}
+                            <textarea id="prompt-{{ loop.index }}"
+                                class="w-full h-24 text-sm bg-gray-50 border border-gray-200 rounded p-2 focus:ring-orange-500 focus:border-orange-500 font-mono resize-none"
+                                placeholder="Enter image generation prompt...">{{ prompt }}</textarea>
+                        </td>
+
+                        <!-- Column 3: Original Asset (Locked) -->
+                        <td class="px-6 py-4 text-center">
+                            <div class="relative group inline-block">
+                                {% if item.original_url %}
+                                <img src="{{ item.original_url }}" alt="Original {{ item.food_name }}"
+                                    class="w-24 h-24 object-contain rounded-lg border border-gray-300 bg-gray-100 p-1 opacity-80"
+                                    title="Locked Original Asset">
+                                <div
+                                    class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 rounded-lg text-white text-xs font-bold">
+                                    LOCKED
+                                </div>
+                                {% else %}
+                                <div
+                                    class="w-24 h-24 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400 text-xs border border-gray-200">
+                                    No Original
+                                </div>
+                                {% endif %}
+                            </div>
+                        </td>
+
+                        <!-- Column 4: Current Image -->
+                        <td class="px-6 py-4 text-center">
+                            <div class="relative group inline-block">
+                                {% if item.images and item.images.image_url %}
+                                <img id="current-img-{{ loop.index }}"
+                                    src="{{ item.images.image_url }}?v={{ range(1, 10000) | random }}"
+                                    alt="{{ item.food_name }}"
+                                    class="w-24 h-24 object-contain rounded-lg border border-gray-200 bg-white p-1">
+                                {% else %}
+                                <div
+                                    class="w-24 h-24 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400 text-xs border border-gray-200">
+                                    No Image
+                                </div>
+                                {% endif %}
+                            </div>
+                        </td>
+
+                        <!-- Column 4: Candidate & Actions -->
+                        <td class="px-6 py-4 text-center align-middle">
+                            <div class="flex flex-col items-center gap-3">
+                                <!-- Candidate Container -->
+                                <div id="candidate-container-{{ loop.index }}"
+                                    class="relative w-32 h-32 flex items-center justify-center">
+                                    {% if item.has_candidate %}
+                                    <img src="{{ item.candidate_url }}?v={{ range(1, 10000) | random }}"
+                                        class="w-24 h-24 object-contain rounded-lg border-2 border-orange-200 bg-white p-1 shadow-sm">
+                                    {% else %}
+                                    <!-- Placeholder when no candidate -->
+                                    <div
+                                        class="w-24 h-24 bg-gray-50 rounded-lg border border-dashed border-gray-300 flex items-center justify-center text-gray-300">
+                                        <span class="text-xs">N/A</span>
+                                    </div>
+                                    {% endif %}
+
+                                    <!-- Spinner Overlay (Hidden by default) -->
+                                    <div id="spinner-{{ loop.index }}"
+                                        class="hidden absolute inset-0 bg-white/80 rounded-lg flex items-center justify-center backdrop-blur-sm z-10">
+                                        <svg class="animate-spin h-6 w-6 text-orange-600"
+                                            xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                                stroke-width="4"></circle>
+                                            <path class="opacity-75" fill="currentColor"
+                                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                            </path>
+                                        </svg>
+                                    </div>
+                                </div>
+
+                                <!-- Action Buttons -->
+                                <div class="flex gap-2 w-full justify-center">
+                                    <!-- Generate Button -->
+                                    <button onclick="generateImage('{{ item.food_name }}', {{ loop.index }})"
+                                        class="p-2 text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200 transition-all shadow-sm"
+                                        title="Generate / Regenerate">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2">
+                                            <path d="M23 4v6h-6"></path>
+                                            <path d="M1 20v-6h6"></path>
+                                            <path
+                                                d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15">
+                                            </path>
+                                        </svg>
+                                    </button>
+
+                                    <!-- Approve Button (Only visible if candidate exists) -->
+                                    <button id="approve-btn-{{ loop.index }}"
+                                        onclick="approveImage('{{ item.food_name }}', {{ loop.index }})"
+                                        class="p-2 text-white bg-green-500 rounded-lg hover:bg-green-600 shadow-md transition-all {% if not item.has_candidate %}hidden{% endif %}"
+                                        title="Approve & Overwrite Production">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2">
+                                            <polyline points="20 6 9 17 4 12"></polyline>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    async function generateImage(ingredientName, index) {
+        const promptInput = document.getElementById(`prompt-${index}`);
+        const spinner = document.getElementById(`spinner-${index}`);
+        const candidateContainer = document.getElementById(`candidate-container-${index}`);
+        const approveBtn = document.getElementById(`approve-btn-${index}`);
+
+        // Show spinner
+        spinner.classList.remove('hidden');
+
+        try {
+            const response = await fetch('/api/generate-ingredient-image', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ingredient_name: ingredientName,
+                    prompt: promptInput.value
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // Update Candidate Image
+                // We use timestamp to prevent caching
+                const newImg = `<img src="${data.image_url}?t=${Date.now()}" 
+                               class="w-24 h-24 object-contain rounded-lg border-2 border-orange-200 bg-white p-1 shadow-sm">
+                               <div id="spinner-${index}" class="hidden absolute inset-0 bg-white/80 rounded-lg flex items-center justify-center backdrop-blur-sm z-10">
+                                   <svg class="animate-spin h-6 w-6 text-orange-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                       <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                       <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                   </svg>
+                               </div>`;
+
+                candidateContainer.innerHTML = newImg;
+                approveBtn.classList.remove('hidden');
+            } else {
+                alert('Error generating image: ' + data.error);
+            }
+        } catch (e) {
+            alert('Network error: ' + e);
+        } finally {
+            // Find the new spinner (since we replaced innerHTML) or the old one if it failed
+            const newSpinner = document.getElementById(`spinner-${index}`);
+            if (newSpinner) newSpinner.classList.add('hidden');
+        }
+    }
+
+    async function approveImage(ingredientName, index) {
+        const spinner = document.getElementById(`spinner-${index}`);
+        const currentImg = document.getElementById(`current-img-${index}`);
+        const candidateContainer = document.getElementById(`candidate-container-${index}`);
+        const approveBtn = document.getElementById(`approve-btn-${index}`);
+
+        if (!confirm("Are you sure? This will overwrite the current production image.")) return;
+
+        // Show spinner on candidate side to indicate processing
+        spinner.classList.remove('hidden');
+
+        try {
+            const response = await fetch('/api/approve-ingredient-image', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ingredient_name: ingredientName })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // Success! 
+                // 1. Refresh "Current" image (bust cache)
+                const currentSrc = currentImg.src.split('?')[0];
+                currentImg.src = `${currentSrc}?t=${Date.now()}`;
+
+                // 2. Clear "Candidate" column
+                candidateContainer.innerHTML = `
+                <div class="w-24 h-24 bg-gray-50 rounded-lg border border-dashed border-gray-300 flex items-center justify-center text-gray-300">
+                    <span class="text-xs">N/A</span>
+                </div>
+                <div id="spinner-${index}" class="hidden absolute inset-0 bg-white/80 rounded-lg flex items-center justify-center backdrop-blur-sm z-10">
+                    <svg class="animate-spin h-6 w-6 text-orange-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </div>`;
+
+                approveBtn.classList.add('hidden');
+
+            } else {
+                alert('Error approving image: ' + data.error);
+            }
+        } catch (e) {
+            alert('Network error: ' + e);
+        } finally {
+            const newSpinner = document.getElementById(`spinner-${index}`);
+            if (newSpinner) newSpinner.classList.add('hidden');
+        }
+    }
+</script>
+{% endblock %}

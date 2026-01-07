@@ -87,10 +87,10 @@ def generate_visual_prompt_from_image(image_bytes: bytes) -> str:
     
     return response.text.strip()
 
-def generate_actual_image(visual_prompt: str) -> Image.Image:
+def generate_actual_image(visual_prompt: str, number_of_images: int = 1) -> list[Image.Image]:
     """
     Uses Gemini (Image) to generate the actual pixel data from the prompt.
-    Returns: PIL Image object
+    Returns: List of PIL Image objects
     """
     if not client:
         raise Exception("Google API Key not configured")
@@ -103,17 +103,20 @@ def generate_actual_image(visual_prompt: str) -> Image.Image:
             model='imagen-4.0-generate-001',
             prompt=visual_prompt,
             config=types.GenerateImagesConfig(
-                number_of_images=1,
-                aspect_ratio='16:9'
+                number_of_images=number_of_images,
+                aspect_ratio='1:1'
             )
         )
         
-        # Access the first image
+        # Access images
         if response.generated_images:
-            genai_image = response.generated_images[0].image
-            return Image.open(BytesIO(genai_image.image_bytes))
+            images = []
+            for gen_img in response.generated_images:
+                # Access the inner 'image' object which contains the bytes
+                images.append(Image.open(BytesIO(gen_img.image.image_bytes)))
+            return images
         else:
-            raise Exception("No image returned from API")
+            raise Exception("No images returned from API")
             
     except Exception as e:
         print(f"Error generating image: {e}")

@@ -1,0 +1,149 @@
+{
+    "main_categories": [
+        "alcoholic beverages",
+        "bakery and bread",
+        "baking ingredients",
+        "canned and preserved",
+        "cereal grains and pasta",
+        "dairy and egg",
+        "fats and oils",
+        "fish and seafood",
+        "fruit and fruit products",
+        "meat",
+        "non-alcoholic beverages",
+        "nuts and seeds",
+        "other",
+        "sauces and condiments",
+        "spices and herbs",
+        "vegetables"
+    ],
+    "sub_categories": {
+        "alcoholic beverages": [
+            "beer",
+            "cider",
+            "liqueurs & cordials",
+            "spirits / liquor",
+            "wine"
+        ],
+        "bakery and bread": [
+            "bread",
+            "flatbreads",
+            "pastries"
+        ],
+        "baking ingredients": [
+            "chocolate",
+            "flavorings",
+            "flour",
+            "leavening agents",
+            "sugar",
+            "yeast"
+        ],
+        "canned and preserved": [
+            "canned fruits and fruit products",
+            "canned legumes & pulses",
+            "canned meat",
+            "canned vegetables",
+            "canned fish & seafood",
+            "pickled foods",
+            "pickles & relishes"
+        ],
+        "cereal grains and pasta": [
+            "breakfast cereals",
+            "noodles",
+            "pasta",
+            "refined grains",
+            "whole grains",
+            "rice"
+        ],
+        "dairy and egg": [
+            "butter and spreads",
+            "cheese",
+            "cream products",
+            "eggs",
+            "milk and milk alternatives",
+            "yoghurt"
+        ],
+        "fats and oils": [
+            "animal fats",
+            "cooking oils",
+            "plant-based solid fats",
+            "speciality & flavored oils"
+        ],
+        "fish and seafood": [
+            "fish",
+            "salmon",
+            "lobster",
+            "scampi",
+            "shrimps",
+            "shellfish"
+        ],
+        "fruit and fruit products": [
+            "berries",
+            "citrus fruits",
+            "dried fruits",
+            "grapes",
+            "juices",
+            "melons",
+            "pome fruits",
+            "stone fruits",
+            "tropical fruits"
+        ],
+        "meat": [
+            "beef",
+            "chicken",
+            "goat",
+            "lamb",
+            "pork",
+            "reindeer",
+            "game",
+            "poultry",
+            "sausages"
+        ],
+        "non-alcoholic beverages": [
+            "coffee and coffee drinks",
+            "soft drinks & sodas",
+            "tea",
+            "water"
+        ],
+        "nuts and seeds": [
+            "nuts",
+            "seeds"
+        ],
+        "sauces and condiments": [
+            "asian-style sauces",
+            "cream & cheese sauces",
+            "dips & dipping sauces",
+            "herb & pesto sauces",
+            "meat gravies & pan sauces",
+            "mother & classic sauces",
+            "other sauces & condiments",
+            "savory condiments",
+            "spreads",
+            "sweet condiments & spreads",
+            "tomato-based sauces",
+            "vinaigrettes & salad dressings"
+        ],
+        "spices and herbs": [
+            "dried herbs",
+            "fresh herbs",
+            "ground spices",
+            "salts",
+            "whole spices"
+        ],
+        "vegetables": [
+            "bulb vegetables",
+            "cruciferous vegetables",
+            "leafy greens",
+            "legumes & pulses",
+            "mushrooms",
+            "nightshade vegetables",
+            "podded vegetables",
+            "root vegetables",
+            "squash & gourds",
+            "stalk vegetables"
+        ],
+        "other": [
+            "other"
+        ]
+    }
+}

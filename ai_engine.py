@@ -54,6 +54,24 @@ class RecipeSchema(typing.TypedDict):
     components: list[ComponentSchema]  # CHANGED: From instructions to components
     chef_note: str
 
+class IngredientAnalysisSchema(typing.TypedDict):
+    name: str # The standardized name
+    main_category: str
+    sub_category: str
+    amount: float # Default amount for context
+    unit: str # Default unit
+    average_g_per_unit: float
+    calories_per_100g: float
+    kj_per_100g: float
+    protein_per_100g: float
+    fat_per_100g: float
+    carbs_per_100g: float
+    sugar_per_100g: float
+    fiber_per_100g: float
+    sodium_mg_per_100g: float
+    fat_saturated_per_100g: float
+    image_prompt: str
+
 # --- Helper Classes for Application Compatibility ---
 # The app expects object access (recipe.title), not dict access (recipe['title'])
 class RecipeObj:
@@ -403,3 +421,53 @@ def generate_recipe_from_video(video_path: str, caption: str, slim_context: list
     if response.parsed:
         return RecipeObj(**response.parsed)
     return RecipeObj(**json.loads(response.text))
+
+# --- Ingredient Analysis ---
+def analyze_ingredient_ai(prompt: str, valid_categories: dict) -> dict:
+    
+    print(f"DEBUG: Analyzing ingredient '{prompt}' via 'gemini-flash-latest'")
+    
+    system_prompt = f"""
+    ROLE: Food Data Scientist.
+    TASK: Analyze the user input and extract structured ingredient data.
+    
+    INPUT: "{prompt}"
+    
+    VALID MAIN CATEGORIES: {json.dumps(valid_categories['main_categories'])}
+    
+    VALID SUB CATEGORIES (Refer to this map): {json.dumps(valid_categories['sub_categories'])}
+    
+    CRITICAL:
+    1.  Standardize the Name (e.g. "Avocados" -> "Avocado").
+    2.  Select the BEST FIT Main and Sub Category from the provided lists.
+    3.  Estimate NUTRITION per 100g based on scientific data. YOU MUST PROVIDE BOTH Calories (kcal) AND Kilojoules (kJ). (1 kcal = 4.184 kJ).
+    4.  Estimate proper DEFAULT UNIT (e.g. 'g', 'ml', 'pcs') and AVERAGE WEIGHT in grams (if unit is 'pcs').
+        - If unit is 'g' or 'ml', average_g_per_unit can be 1 or 100 (irrelevant).
+        - If unit is 'pcs', 'slice', 'cup', etc., value MUST be the gram equivalent (e.g. 1 apple = 150g).
+    5.  Generate a high-quality IMAGE PROMPT for specific food photography.
+        - ROLE: Professional Food Photography Prompt Engineer.
+        - FORMULA: [Subject + State] + [Botanical/Physical Details] + [Mandatory Technical Footer].
+        - CONSTRAINT: Consisteny is Key. Every ingredient must be centered on a pure white background with identical lighting.
+        - CONSTRAINT: Anatomical Accuracy. Describe specific parts (stems, veins, marbling) for realism.
+        - CONSTRAINT: Framing. The entire subject must be fully visible within the frame with whitespace padding around the edges. Do not crop.
+        - MANDATORY FOOTER: "Professional studio food photography. High-angle overhead shot, centered composition. Entire subject fully visible in frame with white space padding. Soft 45-degree side lighting to create depth. Sharp focus on textures. Isolated on a clean, seamless, minimalist white background."
+        - EXAMPLE: "A professional studio food photography shot of a whole, raw ginger rhizome. Deeply textured, light brown tan skin with visible rings and organic nodules. Professional studio food photography. High-angle overhead shot, centered composition. Entire subject fully visible in frame with white space padding. Soft 45-degree side lighting to create depth. Sharp focus on textures. Isolated on a clean, seamless, minimalist white background."
+    """
+
+    try:
+        response = client.models.generate_content(
+            model='gemini-flash-latest',
+            contents=system_prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=IngredientAnalysisSchema
+            )
+        )
+        
+        if response.parsed:
+            return response.parsed
+        return json.loads(response.text)
+        
+    except Exception as e:
+        print(f"ERROR: Ingredient Analysis failed: {e}")
+        raise ValueError(f"AI Analysis failed: {e}")
