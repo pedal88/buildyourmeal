@@ -658,21 +658,10 @@ def pantry_list():
 
 @app.route('/pantry')
 def pantry_management():
-    # Fetch all ingredients
+    # Fetch all ingredients sorted by Category then Name
     ingredients = db.session.execute(db.select(Ingredient).order_by(Ingredient.main_category, Ingredient.name)).scalars().all()
     
-    # Group by category for the view
-    grouped = {}
-    for ing in ingredients:
-        cat = ing.main_category or "Other"
-        if cat not in grouped:
-            grouped[cat] = []
-        grouped[cat].append(ing)
-    
-    # Sort categories
-    sorted_grouped = dict(sorted(grouped.items()))
-    
-    return render_template('pantry_management.html', grouped_ingredients=sorted_grouped)
+    return render_template('pantry_management.html', ingredients=ingredients)
 
 @app.route('/api/ingredient/<int:id>/toggle_basic', methods=['POST'])
 def toggle_basic_ingredient(id):
@@ -803,7 +792,20 @@ def get_ingredient_details_api(id):
             'success': True,
             'id': ingredient.id,
             'name': ingredient.name,
-            'image_prompt': ingredient.image_prompt or "No prompt available."
+            'image_prompt': ingredient.image_prompt or "No prompt available.",
+            'main_category': ingredient.main_category,
+            'sub_category': ingredient.sub_category,
+            'unit': ingredient.default_unit,
+            'average_g_per_unit': ingredient.average_g_per_unit,
+            'calories_per_100g': ingredient.calories_per_100g,
+            'protein_per_100g': ingredient.protein_per_100g,
+            'fat_per_100g': ingredient.fat_per_100g,
+            'carbs_per_100g': ingredient.carbs_per_100g,
+            'sugar_per_100g': ingredient.sugar_per_100g,
+            'fiber_per_100g': ingredient.fiber_per_100g,
+            'fat_saturated_per_100g': ingredient.fat_saturated_per_100g,
+            'sodium_mg_per_100g': ingredient.sodium_mg_per_100g,
+            'kj_per_100g': ingredient.kj_per_100g
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -907,7 +909,7 @@ def save_new_ingredient_api():
                 os.makedirs(dst_dir, exist_ok=True)
                 
                 dst = os.path.join(dst_dir, new_filename)
-                shutil.move(src, dst)
+                shutil.move(src, dst) # Keep this line
                 
                 image_url = f"pantry/{new_filename}"
 
@@ -940,10 +942,131 @@ def save_new_ingredient_api():
         db.session.add(new_ing)
         db.session.commit()
         
-        return jsonify({'success': True, 'food_id': new_food_id})
+        return jsonify({'success': True, 'id': new_ing.id}) # Changed 'food_id' to 'id'
         
     except Exception as e:
-        print(f"Save Ingredient Error: {e}")
+        db.session.rollback() # Added rollback
+        print(f"Save Ing Error: {e}") # Changed print message
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/update-ingredient-data', methods=['POST'])
+def update_ingredient_data_api():
+    try:
+        data = request.get_json()
+        ing_id = data.get('id')
+        
+        if not ing_id:
+             return jsonify({'success': False, 'error': 'ID is required'}), 400
+             
+        ingredient = db.session.get(Ingredient, ing_id)
+        if not ingredient:
+             return jsonify({'success': False, 'error': 'Ingredient not found'}), 404
+             
+        # Update Fields
+        ingredient.name = data.get('name')
+        ingredient.main_category = data.get('main_category')
+        ingredient.sub_category = data.get('sub_category')
+        ingredient.default_unit = data.get('unit')
+        ingredient.average_g_per_unit = data.get('average_g_per_unit')
+        
+        ingredient.calories_per_100g = data.get('calories_per_100g')
+        ingredient.kj_per_100g = data.get('kj_per_100g', 0)
+        ingredient.protein_per_100g = data.get('protein_per_100g')
+        ingredient.fat_per_100g = data.get('fat_per_100g')
+        ingredient.carbs_per_100g = data.get('carbs_per_100g')
+        ingredient.sugar_per_100g = data.get('sugar_per_100g')
+        ingredient.fiber_per_100g = data.get('fiber_per_100g')
+        ingredient.fat_saturated_per_100g = data.get('fat_saturated_per_100g')
+        ingredient.sodium_mg_per_100g = data.get('sodium_mg_per_100g')
+        
+        if data.get('image_prompt'):
+            ingredient.image_prompt = data.get('image_prompt')
+            
+        # Handle New Image if provided
+        temp_filename = data.get('temp_image_filename')
+        if temp_filename:
+            src = os.path.join(app.root_path, 'static', 'temp', temp_filename)
+            if os.path.exists(src):
+                # Use existing food_id + random to bust cache
+                new_filename = f"{ingredient.food_id}_{uuid.uuid4().hex[:6]}.png"
+                dst_dir = os.path.join(app.root_path, 'static', 'pantry')
+                os.makedirs(dst_dir, exist_ok=True)
+                
+                dst = os.path.join(dst_dir, new_filename)
+                shutil.move(src, dst)
+                
+                ingredient.image_url = f"pantry/{new_filename}"
+        
+        db.session.commit()
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"Update Ing Data Error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/merge-ingredients', methods=['POST'])
+def merge_ingredients_api():
+    try:
+        data = request.get_json()
+        source_id = data.get('source_id')
+        target_id = data.get('target_id')
+        
+        if not source_id or not target_id:
+            return jsonify({'success': False, 'error': 'Source and Target IDs required'}), 400
+        
+        if source_id == target_id:
+            return jsonify({'success': False, 'error': 'Cannot merge ingredient into itself'}), 400
+
+        source = db.session.get(Ingredient, source_id)
+        target = db.session.get(Ingredient, target_id)
+        
+        if not source or not target:
+             return jsonify({'success': False, 'error': 'One or both ingredients not found'}), 404
+             
+        # Begin Merge
+        # 1. Get all usages of source
+        usages = list(source.recipe_ingredients) 
+        
+        count_updated = 0
+        count_conflicts = 0
+        
+        for usage in usages:
+            recipe = usage.recipe
+            
+            # Check if recipe already has target
+            conflict = next((ri for ri in recipe.ingredients if ri.ingredient_id == target.id), None)
+            
+            if conflict:
+                # Recipe uses both. Remove source usage (redundant).
+                db.session.delete(usage)
+                count_conflicts += 1
+            else:
+                # No conflict, just reassign
+                usage.ingredient = target
+                db.session.add(usage)
+                count_updated += 1
+        
+        # Flush changes to DB so Foreign Keys are updated/deleted
+        db.session.flush()
+        
+        # Refresh source to ensure it knows it has no more associated ingredients
+        # preventing SQLAlchemy from trying to SET NULL on delete
+        db.session.refresh(source)
+        
+        # 2. Delete the Source Ingredient
+        db.session.delete(source)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True, 
+            'message': f"Merged '{source.name}' into '{target.name}'. Updated {count_updated} recipes, resolved {count_conflicts} conflicts."
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"Merge Error: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/generate/web', methods=['POST'])
