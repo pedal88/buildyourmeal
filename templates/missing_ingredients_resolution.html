@@ -1,0 +1,360 @@
+{% extends "base.html" %}
+
+{% block title %}Resolve Missing Ingredients - The AI Kitchen{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-8">
+    <div class="mb-8 text-center">
+        <h1 class="text-3xl font-bold text-slate-900 mb-2">Missing Ingredients Detected</h1>
+        <p class="text-slate-600">The AI Chef suggested ingredients that are not in your pantry. Review and add them to
+            continue.</p>
+    </div>
+
+    <!-- Main Resolution List -->
+    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden mb-6">
+        <div class="p-6 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+            <h2 class="font-semibold text-slate-800">Review & Resolve</h2>
+            <div class="text-xs text-slate-500 font-mono" id="resolution-status">0 / {{ missing_items|length }} Resolved
+            </div>
+        </div>
+
+        <div class="divide-y divide-slate-100">
+            {% for item in missing_items %}
+            <div class="p-6 flex flex-col md:flex-row gap-6 items-start md:items-center justify-between group transition-colors"
+                id="row-{{ loop.index }}">
+                <div class="flex-grow">
+                    <div class="flex items-center gap-2 mb-1">
+                        <span
+                            class="px-2 py-1 bg-red-100 text-red-700 text-xs font-bold rounded uppercase tracking-wide status-badge">Missing</span>
+                        <h3 class="text-lg font-bold text-slate-900" id="name-{{ loop.index }}">{{ item.name }}</h3>
+                    </div>
+                    <p class="text-sm text-slate-500">
+                        Required: <span class="font-mono font-medium text-slate-700">{{ item.amount }} {{ item.unit
+                            }}</span>
+                        for <span class="italic text-slate-600">{{ item.component }}</span>
+                    </p>
+                </div>
+
+                <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto actions-area">
+                    <!-- Action: Review & Add -->
+                    <button onclick="openReviewModal('{{ item.name }}', {{ loop.index }})"
+                        class="flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg shadow-sm transition-all focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
+                            </path>
+                        </svg>
+                        Review & Add
+                    </button>
+
+                    <!-- Secondary: Quick Add (Hidden by default or smaller?) -> Keeping it distinct -->
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <div class="flex justify-end gap-4">
+        <a href="/" class="px-6 py-2 text-slate-500 hover:text-slate-800 font-medium text-sm">Cancel</a>
+        <button onclick="retryGeneration()" id="continueBtn" disabled
+            class="px-6 py-2 bg-slate-900 text-white font-medium text-sm rounded-lg shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-800">
+            Continue & Save Recipe
+        </button>
+    </div>
+</div>
+
+<!-- Retry Form -->
+<form id="retryForm" action="/generate" method="GET" class="hidden">
+    <input type="hidden" name="query" value="{{ query }}">
+    <input type="hidden" name="chef_id" value="{{ chef_id }}">
+</form>
+
+<!-- EDIT MODAL -->
+<div id="editModal" class="fixed inset-0 z-50 flex items-center justify-center hidden">
+    <!-- Backdrop -->
+    <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onclick="closeModal()"></div>
+
+    <!-- Modal Content -->
+    <div class="relative bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+
+        <!-- Header -->
+        <div class="px-6 py-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+            <div>
+                <h3 class="text-lg font-bold text-slate-900">Add Ingredient</h3>
+                <p class="text-xs text-slate-500">Review AI suggestions before saving</p>
+            </div>
+            <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 transition-colors">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                    </path>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Body (Scrollable) -->
+        <div class="p-6 overflow-y-auto flex-grow space-y-6" id="modalBody">
+            <!-- Loading State inside Modal -->
+            <div id="modalLoading" class="flex flex-col items-center justify-center py-12">
+                <div class="animate-spin h-8 w-8 border-4 border-indigo-600 border-t-transparent rounded-full mb-3">
+                </div>
+                <p class="text-sm text-slate-500 font-medium">Analyzing Ingredient...</p>
+            </div>
+
+            <!-- Form -->
+            <form id="ingredientForm" class="hidden space-y-6">
+                <!-- Identity -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="col-span-2">
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Ingredient Name</label>
+                        <input type="text" id="inputName" name="name"
+                            class="w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 font-medium text-slate-900">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Category</label>
+                        <select id="inputCategory" name="main_category"
+                            class="w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+                            onchange="updateSubCategories()">
+                            <option value="">Select...</option>
+                            {% for cat in main_categories %}
+                            <option value="{{ cat }}">{{ cat }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Sub-Category</label>
+                        <select id="inputSubCategory" name="sub_category"
+                            class="w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
+                            <option value="">Select...</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Unit & Weight -->
+                <div class="bg-indigo-50 p-4 rounded-lg flex gap-4">
+                    <div class="w-1/3">
+                        <label class="block text-xs font-bold text-indigo-900 uppercase mb-1">Default Unit</label>
+                        <input type="text" id="inputUnit" name="unit"
+                            class="w-full rounded-md border-indigo-200 focus:border-indigo-500 focus:ring-indigo-500 text-sm">
+                    </div>
+                    <div class="w-2/3">
+                        <label class="block text-xs font-bold text-indigo-900 uppercase mb-1">Avg Weight (g)</label>
+                        <div class="flex items-center gap-2">
+                            <input type="number" step="0.1" id="inputAvgWeight" name="average_g_per_unit"
+                                class="w-full rounded-md border-indigo-200 focus:border-indigo-500 focus:ring-indigo-500 text-sm">
+                            <span class="text-xs text-indigo-400">g/unit</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Nutrition Grid -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Nutrition (per 100g)</label>
+                    <div class="grid grid-cols-4 gap-3">
+                        {% for nut in [
+                        ('scales', 'Calories', 'calories_per_100g', 'kcal'),
+                        ('lightning', 'Energy', 'kj_per_100g', 'kJ'),
+                        ('muscle', 'Protein', 'protein_per_100g', 'g'),
+                        ('droplet', 'Fat', 'fat_per_100g', 'g'),
+                        ('bread', 'Carbs', 'carbs_per_100g', 'g'),
+                        ('cube', 'Sugar', 'sugar_per_100g', 'g'),
+                        ('leaf', 'Fiber', 'fiber_per_100g', 'g'),
+                        ('salt', 'Sodium', 'sodium_mg_per_100g', 'mg')
+                        ] %}
+                        <div class="bg-slate-50 p-2 rounded border border-slate-200 text-center">
+                            <span class="block text-[10px] text-slate-500 uppercase tracking-tight mb-1">{{ nut[1]
+                                }}</span>
+                            <div class="flex items-baseline justify-center gap-1">
+                                <input type="number" step="0.1" name="{{ nut[2] }}" id="input-{{ nut[2] }}"
+                                    class="w-full p-0 text-center bg-transparent border-none text-sm font-bold text-slate-900 focus:ring-0 placeholder-slate-300"
+                                    placeholder="-">
+                                <span class="text-[10px] text-slate-400">{{ nut[3] }}</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Prompt -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Image Prompt</label>
+                    <textarea id="inputImagePrompt" name="image_prompt" rows="2"
+                        class="w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-xs text-slate-600"></textarea>
+                </div>
+
+                <input type="hidden" id="currentRowIndex">
+            </form>
+        </div>
+
+        <!-- Footer -->
+        <div class="px-6 py-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
+            <button onclick="closeModal()"
+                class="px-4 py-2 text-slate-600 hover:text-slate-800 text-sm font-medium">Cancel</button>
+            <button onclick="saveIngredient()"
+                class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg shadow-sm">Save
+                to Pantry</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const SUB_CATEGORY_MAP = {{ sub_categories_map | tojson }};
+    let resolvedCount = 0;
+    const totalMissing = {{ missing_items| length }};
+
+    function updateSubCategories() {
+        const cat = document.getElementById('inputCategory').value;
+        const subSelect = document.getElementById('inputSubCategory');
+        subSelect.innerHTML = '<option value="">Select...</option>';
+
+        if (cat && SUB_CATEGORY_MAP[cat]) {
+            SUB_CATEGORY_MAP[cat].forEach(sub => {
+                const opt = document.createElement('option');
+                opt.value = sub;
+                opt.textContent = sub;
+                subSelect.appendChild(opt);
+            });
+        }
+    }
+
+    async function openReviewModal(name, index) {
+        const modal = document.getElementById('editModal');
+        const form = document.getElementById('ingredientForm');
+        const loading = document.getElementById('modalLoading');
+
+        // Reset Form
+        form.reset();
+        document.getElementById('currentRowIndex').value = index;
+        document.getElementById('inputName').value = name;
+
+        // Show Modal & Loading
+        modal.classList.remove('hidden');
+        form.classList.add('hidden');
+        loading.classList.remove('hidden');
+
+        try {
+            // AI Analysis
+            // We use the same prompt as the quick add logic usually, but here we explicitly ask for analysis
+            const response = await fetch('/api/analyze-ingredient', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt: name })
+            });
+
+            const res = await response.json();
+
+            if (res.success && res.data) {
+                const d = res.data;
+
+                // Populate Form
+                document.getElementById('inputName').value = d.name || name;
+                document.getElementById('inputCategory').value = d.main_category || "";
+                updateSubCategories();
+                document.getElementById('inputSubCategory').value = d.sub_category || "";
+
+                document.getElementById('inputUnit').value = d.unit || "g";
+                document.getElementById('inputAvgWeight').value = d.average_g_per_unit || "";
+                document.getElementById('inputImagePrompt').value = d.image_prompt || "";
+
+                // Nutrition
+                ['calories_per_100g', 'kj_per_100g', 'protein_per_100g', 'fat_per_100g',
+                    'carbs_per_100g', 'sugar_per_100g', 'fiber_per_100g', 'sodium_mg_per_100g'].forEach(k => {
+                        if (d[k] !== undefined) document.getElementById(`input-${k}`).value = d[k];
+                    });
+
+            } else {
+                console.error("Analysis failed, using defaults");
+            }
+        } catch (e) {
+            console.error("Error fetching analysis", e);
+        } finally {
+            // Show Form
+            loading.classList.add('hidden');
+            form.classList.remove('hidden');
+        }
+    }
+
+    function closeModal() {
+        document.getElementById('editModal').classList.add('hidden');
+    }
+
+    async function saveIngredient() {
+        const form = document.getElementById('ingredientForm');
+        const formData = new FormData(form);
+        const data = Object.fromEntries(formData.entries());
+        const index = document.getElementById('currentRowIndex').value;
+
+        // Clean up numeric inputs
+        ['average_g_per_unit', 'calories_per_100g', 'kj_per_100g', 'protein_per_100g', 'fat_per_100g',
+            'carbs_per_100g', 'sugar_per_100g', 'fiber_per_100g', 'sodium_mg_per_100g'].forEach(k => {
+                if (data[k]) data[k] = parseFloat(data[k]);
+            });
+
+        // Save API (Using the existing save-ingredient which takes JSON)
+        try {
+            const response = await fetch('/api/quick-add-ingredient', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data) // The quick-add endpoint actually accepts the full object structure if we pass it, OR we should reuse save-ingredient? 
+                // Wait, quick-add does analysis internally. 
+                // We should use the 'save-new-ingredient-api' (/api/save-ingredient) which takes raw data!
+                // Let's verify app.py. Yes /api/save-ingredient takes the full payload.
+            });
+
+            // Wait, I should use /api/save-ingredient instead of quick-add for this explicit save.
+            // Let's call /api/save-ingredient
+            const saveResponse = await fetch('/api/save-ingredient', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            const res = await saveResponse.json();
+
+            if (res.success) {
+                closeModal();
+                markRowResolved(index, data.name);
+            } else {
+                alert("Error saving: " + res.error);
+            }
+
+        } catch (e) {
+            alert("System error: " + e);
+        }
+    }
+
+    function markRowResolved(index, name) {
+        const row = document.getElementById(`row-${index}`);
+
+        row.innerHTML = `
+        <div class="flex items-center gap-4 w-full">
+            <div class="w-10 h-10 rounded-full bg-green-100 text-green-600 flex items-center justify-center shadow-sm">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+            </div>
+            <div>
+                <h3 class="font-bold text-slate-800 text-lg line-through opacity-50 decoration-2">${name}</h3>
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-green-50 text-green-700">
+                    Resolved & Added
+                </span>
+            </div>
+        </div>
+    `;
+        row.classList.add('bg-slate-50', 'opacity-75');
+
+        resolvedCount++;
+        document.getElementById('resolution-status').innerText = `${resolvedCount} / ${totalMissing} Resolved`;
+
+        if (resolvedCount >= totalMissing) {
+            const btn = document.getElementById('continueBtn');
+            btn.disabled = false;
+            btn.classList.remove('bg-slate-900', 'text-white');
+            btn.classList.add('bg-green-600', 'text-white', 'hover:bg-green-700', 'ring-2', 'ring-green-500', 'ring-offset-2');
+            btn.innerHTML = `Continue & Process Recipe <svg class="w-4 h-4 ml-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>`;
+        }
+    }
+
+    function retryGeneration() {
+        document.getElementById('retryForm').submit();
+    }
+</script>
+{% endblock %}

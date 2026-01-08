@@ -245,7 +245,7 @@ def studio_generate():
         prompt_b1 = request.form.get('prompt_b1')
         img_c1_url = None
         if prompt_b1:
-            img = generate_actual_image(prompt_b1)
+            img = generate_actual_image(prompt_b1)[0]
             filename = f"studio_a_{uuid.uuid4().hex}.png"
             img.save(os.path.join(app.root_path, 'static', 'temp', filename))
             img_c1_url = url_for('static', filename=f'temp/{filename}')
@@ -254,7 +254,7 @@ def studio_generate():
         prompt_b2 = request.form.get('prompt_b2')
         img_c2_url = None
         if prompt_b2:
-            img = generate_actual_image(prompt_b2)
+            img = generate_actual_image(prompt_b2)[0]
             filename = f"studio_b_{uuid.uuid4().hex}.png"
             img.save(os.path.join(app.root_path, 'static', 'temp', filename))
             img_c2_url = url_for('static', filename=f'temp/{filename}')
@@ -337,7 +337,7 @@ def recipe_image_generation_create():
             return jsonify({'success': False, 'error': 'Prompt required'})
             
         # Generate Image
-        img = generate_actual_image(prompt)
+        img = generate_actual_image(prompt)[0]
         
         # Save to Temp
         filename = f"temp_{uuid.uuid4().hex}.png"
@@ -661,7 +661,17 @@ def pantry_management():
     # Fetch all ingredients sorted by Category then Name
     ingredients = db.session.execute(db.select(Ingredient).order_by(Ingredient.main_category, Ingredient.name)).scalars().all()
     
-    return render_template('pantry_management.html', ingredients=ingredients)
+    # Load constraints for dependent filtering
+    data_dir = os.path.join(app.root_path, 'data', 'constraints')
+    sub_categories_map = {}
+    try:
+        with open(os.path.join(data_dir, 'categories.json'), 'r') as f:
+            data = json.load(f)
+            sub_categories_map = data.get('sub_categories', {})
+    except Exception as e:
+        print(f"Error loading categories: {e}")
+
+    return render_template('pantry_management.html', ingredients=ingredients, sub_categories_map=sub_categories_map)
 
 @app.route('/api/ingredient/<int:id>/toggle_basic', methods=['POST'])
 def toggle_basic_ingredient(id):
@@ -949,6 +959,83 @@ def save_new_ingredient_api():
         print(f"Save Ing Error: {e}") # Changed print message
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/api/quick-add-ingredient', methods=['POST'])
+def quick_add_ingredient_api():
+    try:
+        data = request.get_json()
+        name = data.get('name')
+        
+        if not name:
+            return jsonify({'success': False, 'error': 'Name is required'}), 400
+            
+        # 1. Load Categories via Constraints
+        data_dir = os.path.join(app.root_path, 'data', 'constraints')
+        with open(os.path.join(data_dir, 'categories.json'), 'r') as f:
+            category_data = json.load(f)
+            
+        # 2. Analyze
+        analysis = analyze_ingredient_ai(name, category_data)
+        
+        # 3. Generate Unique ID
+        all_ids = db.session.execute(db.select(Ingredient.food_id)).scalars().all()
+        max_id = 0
+        for fid in all_ids:
+             # Ensure we parse only numeric IDs
+             if fid.isdigit():
+                val = int(fid)
+                if val > max_id:
+                    max_id = val
+        
+        new_id_int = max_id + 1
+        new_food_id = f"{new_id_int:06d}"
+        
+        # 4. Create Object (No Image for Quick Add - can regenerate later)
+        new_ing = Ingredient(
+            food_id=new_food_id,
+            name=analysis.get('name', name), # Use analyzed name if available
+            main_category=analysis.get('main_category'),
+            sub_category=analysis.get('sub_category'),
+            default_unit=analysis.get('unit'),
+            average_g_per_unit=analysis.get('average_g_per_unit'),
+            
+            # Nutrition
+            calories_per_100g=analysis.get('calories_per_100g'),
+            protein_per_100g=analysis.get('protein_per_100g'),
+            fat_per_100g=analysis.get('fat_per_100g'),
+            carbs_per_100g=analysis.get('carbs_per_100g'),
+            sugar_per_100g=analysis.get('sugar_per_100g'),
+            fiber_per_100g=analysis.get('fiber_per_100g'),
+            sodium_mg_per_100g=analysis.get('sodium_mg_per_100g'),
+            fat_saturated_per_100g=analysis.get('fat_saturated_per_100g'),
+            kj_per_100g=analysis.get('kj_per_100g'),
+            
+            # Metadata
+            image_prompt=analysis.get('image_prompt'),
+            is_original=False,
+            created_at=datetime.datetime.now().isoformat()
+        )
+        
+        db.session.add(new_ing)
+        db.session.commit()
+        
+        # Update cache/map if needed?
+        # Typically the app gets context from DB on request, 
+        # but generate_recipe_ai uses a "slim_context" passed to it.
+        # We assume the user RE-SUBMITS the generation request, which will fetch fresh context.
+        
+        return jsonify({
+            'success': True, 
+            'ingredient': {
+                'id': new_ing.id,
+                'name': new_ing.name
+            }
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"Quick Add Error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/api/update-ingredient-data', methods=['POST'])
 def update_ingredient_data_api():
     try:
@@ -1215,8 +1302,36 @@ def generate():
             for mt in recipe_data.meal_types:
                 db.session.add(RecipeMealType(recipe_id=new_recipe.id, meal_type=mt))
         
-        # Ingredients
-        # Ingredients
+        # Validate Ingredients - Step 1: Check for Missing Items
+        missing_ingredients = []
+        for group in recipe_data.ingredient_groups:
+            for ing in group.ingredients:
+                food_id_str = get_pantry_id(ing.name)
+                if not food_id_str:
+                     # Check if we already added it to missing list to avoid duplicates
+                     if not any(m['name'] == ing.name for m in missing_ingredients):
+                        missing_ingredients.append({
+                            'name': ing.name,
+                            'amount': ing.amount,
+                            'unit': ing.unit,
+                            'component': group.component
+                        })
+        
+        # If we have missing ingredients, STOP and ask user to resolve
+        if missing_ingredients:
+            # Load categories for the resolution UI dropdowns
+            data_dir = os.path.join(app.root_path, 'data', 'constraints')
+            with open(os.path.join(data_dir, 'categories.json'), 'r') as f:
+                cat_data = json.load(f)
+                
+            return render_template('missing_ingredients_resolution.html', 
+                                 missing_items=missing_ingredients,
+                                 query=query,
+                                 chef_id=chef_id,
+                                 main_categories=cat_data.get('main_categories', []),
+                                 sub_categories_map=cat_data.get('sub_categories', {}))
+
+        # Step 2: Save to DB (All ingredients detected)
         for group in recipe_data.ingredient_groups:
             for ing in group.ingredients:
                 # ing.name is validated name from pantry
@@ -1224,6 +1339,7 @@ def generate():
                 food_id_str = get_pantry_id(ing.name)
                 
                 if not food_id_str:
+                     # Should not happen if logic above works, unless race condition
                      raise ValueError(f"System error: ID not found for validated ingredient {ing.name}")
                 
                 # Find the internal Integer ID (PK) for this food_id
@@ -1271,7 +1387,7 @@ def generate():
             visual_prompt = generate_visual_prompt(visual_context)
             
             # Generate actual image
-            img = generate_actual_image(visual_prompt)
+            img = generate_actual_image(visual_prompt)[0]
             
             # Save to static/recipes/
             import uuid
