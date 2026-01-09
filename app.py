@@ -825,11 +825,19 @@ def delete_ingredient_api(id):
             
         # Check usage in recipes
         if ingredient.recipe_ingredients:
-            count = len(ingredient.recipe_ingredients)
-            return jsonify({
-                'success': False, 
-                'error': f"Cannot delete '{ingredient.name}' because it is used in {count} recipes."
-            }), 400
+            force = request.args.get('force') == 'true'
+            if not force:
+                recipes = [ri.recipe.title for ri in ingredient.recipe_ingredients]
+                return jsonify({
+                    'success': False, 
+                    'requires_confirmation': True,
+                    'message': f"Used in {len(recipes)} recipes: {', '.join(recipes)}. Delete anyway?",
+                    'recipes': recipes
+                }), 409
+
+            # Explicitly delete associations if forcing
+            for ri in ingredient.recipe_ingredients:
+                db.session.delete(ri)
             
         db.session.delete(ingredient)
         db.session.commit()
@@ -1590,14 +1598,28 @@ def ingredient_dashboard():
 def generate_ingredient_image():
     data = request.json
     ingredient_name = data.get('ingredient_name')
-    prompt = data.get('prompt')
+    # The frontend text box value, treated as details if name exists, or raw prompt if not
+    user_input = data.get('prompt') 
     
-    if not ingredient_name or not prompt:
-        return jsonify({'success': False, 'error': 'Missing name or prompt'})
+    if not ingredient_name and not user_input:
+        return jsonify({'success': False, 'error': 'Missing name or details'})
         
     generator = VertexImageGenerator(root_path=app.root_path)
-    result = generator.generate_candidate(ingredient_name, prompt)
-    
+
+    if ingredient_name:
+        # STRATEGY A: Use the Studio Template (Preferred)
+        # We treat the user's input as the 'visual_details' variable
+        final_prompt = generator.get_prompt(ingredient_name, visual_details=user_input or "")
+        print(f"DEBUG: Generating image for '{ingredient_name}' using Template. Final Prompt: {final_prompt[:50]}...")
+        result = generator.generate_candidate(ingredient_name, final_prompt)
+    elif user_input:
+        # STRATEGY B: Fallback (Raw Mode) - generate a temp name
+        temp_name = f"unknown_{uuid.uuid4().hex[:6]}"
+        print(f"DEBUG: Generating raw image using Prompt: {user_input[:50]}...")
+        result = generator.generate_candidate(temp_name, user_input)
+    else:
+         return jsonify({'success': False, 'error': 'Missing name or prompt'})
+
     return jsonify(result)
 
 @app.route('/api/approve-ingredient-image', methods=['POST'])

@@ -309,32 +309,14 @@ def analyze_ingredient_ai(prompt: str, valid_categories: dict) -> dict:
     
     print(f"DEBUG: Analyzing ingredient '{prompt}' via 'gemini-flash-latest'")
     
-    system_prompt = f"""
-    ROLE: Food Data Scientist.
-    TASK: Analyze the user input and extract structured ingredient data.
+    # Load prompt from studio template
+    from utils.prompt_manager import load_prompt
     
-    INPUT: "{prompt}"
-    
-    VALID MAIN CATEGORIES: {json.dumps(valid_categories['main_categories'])}
-    
-    VALID SUB CATEGORIES (Refer to this map): {json.dumps(valid_categories['sub_categories'])}
-    
-    CRITICAL:
-    1.  Standardize the Name (e.g. "Avocados" -> "Avocado").
-    2.  Select the BEST FIT Main and Sub Category from the provided lists.
-    3.  Estimate NUTRITION per 100g based on scientific data. YOU MUST PROVIDE BOTH Calories (kcal) AND Kilojoules (kJ). (1 kcal = 4.184 kJ).
-    4.  Estimate proper DEFAULT UNIT (e.g. 'g', 'ml', 'pcs') and AVERAGE WEIGHT in grams (if unit is 'pcs').
-        - If unit is 'g' or 'ml', average_g_per_unit can be 1 or 100 (irrelevant).
-        - If unit is 'pcs', 'slice', 'cup', etc., value MUST be the gram equivalent (e.g. 1 apple = 150g).
-    5.  Generate a high-quality IMAGE PROMPT for specific food photography.
-        - ROLE: Professional Food Photography Prompt Engineer.
-        - FORMULA: [Subject + State] + [Botanical/Physical Details] + [Mandatory Technical Footer].
-        - CONSTRAINT: Consisteny is Key. Every ingredient must be centered on a pure white background with identical lighting.
-        - CONSTRAINT: Anatomical Accuracy. Describe specific parts (stems, veins, marbling) for realism.
-        - CONSTRAINT: Framing. The entire subject must be fully visible within the frame with whitespace padding around the edges. Do not crop.
-        - MANDATORY FOOTER: "Professional studio food photography. High-angle overhead shot, centered composition. Entire subject fully visible in frame with white space padding. Soft 45-degree side lighting to create depth. Sharp focus on textures. Isolated on a clean, seamless, minimalist white background."
-        - EXAMPLE: "A professional studio food photography shot of a whole, raw ginger rhizome. Deeply textured, light brown tan skin with visible rings and organic nodules. Professional studio food photography. High-angle overhead shot, centered composition. Entire subject fully visible in frame with white space padding. Soft 45-degree side lighting to create depth. Sharp focus on textures. Isolated on a clean, seamless, minimalist white background."
-    """
+    system_prompt = load_prompt('ingredient_analysis.jinja2', 
+        user_input=prompt,
+        valid_categories_json=json.dumps(valid_categories['main_categories']),
+        valid_subcategories_json=json.dumps(valid_categories['sub_categories'])
+    )
 
     try:
         response = client.models.generate_content(

@@ -31,24 +31,17 @@ def generate_visual_prompt(recipe_text: str, ingredients_list: str = None) -> st
     if ingredients_list:
         ingredients_context = f"\nStats: CRITICAL - The following ingredients MUST be visible: {ingredients_list}\n"
     
-    style_guide = """
-    STYLE GUIDELINE:
-    - Vibe: Professional, High-End, Cookbook.
-    - Description: Hyper-realistic photography with perfect studio lighting. The ingredient is the hero.
-    - Constraint: Isolated on a pure white background.
-    - Output Format: Write a single, concise image generation prompt. Do not write a list.
-    """
+    from utils.prompt_manager import load_prompt
     
-    full_prompt = f"""
-    {config['system_prompt']}
-    {style_guide}
-    {ingredients_context}
+    ingredients_context = ""
+    if ingredients_list:
+        ingredients_context = f"\nStats: CRITICAL - The following ingredients MUST be visible: {ingredients_list}\n"
     
-    RECIPE / IDEA TO ANALYZE:
-    {recipe_text}
-    
-    Task: Convert the above idea into a professional image generation prompt following the style guideline.
-    """
+    full_prompt = load_prompt('visual_description.jinja2',
+        system_prompt=config['system_prompt'],
+        ingredients_context=ingredients_context,
+        recipe_text=recipe_text
+    )
     
     response = client.models.generate_content(
         model='gemini-2.0-flash-exp', # Using a fast text model
@@ -180,15 +173,80 @@ def process_external_image(image_url: str) -> Image.Image:
         
         image_bytes = response.content
         
-        # 2. Re-Imagine (Use Cookbook Style)
-        # We reuse the generate_image_variation which specifically cleans up text and applies our style
-        config = load_photographer_config()
-        # "Cookbook Style" is not in config, so we use the best template we created for Studio
-        # Actually, let's reuse generate_image_variation directly with a strong fixed prompt
+        from utils.prompt_manager import load_prompt
+        # Load the cookbook style template
+        # The template expects {{ subject_description }} but generate_image_variation handles the logic of 
+        # combining a subject description with a "fixed_prompt".
+        # However, generate_image_variation expects a "fixed_prompt" that might contain placeholders.
+        # But style_cookbook.jinja2 IS a full sentence "A professional... of {{ subject_description }}..."
+        # So we need to be careful. generate_image_variation calls generate_actual_image(final_prompt).
+        # We should probably use the template content AS the 'fixed_prompt' OR refactor logic.
         
-        cookbook_prompt = "A professional close-up food photography shot of [Ingredient Name]. Studio lighting, soft shadows, sharp focus, isolated on a pure white background. 8k resolution, highly detailed texture, appetizing."
+        # Let's simplify: We want to use the template logic. 
+        # But generate_image_variation does its own 2-step process.
+        # Let's read the template RAW content (with placeholders intact) to pass as 'fixed_prompt'
+        # OR we just update the text here.
         
-        return generate_image_variation(image_bytes, cookbook_prompt)
+        # ACTUALLY: The user requirement says:
+        # Target: data/prompts/style_cookbook.jinja2
+        # Variables: {{ subject_description }}
+        # Python Change: Update function to load this style template.
+        
+        # So we need to get the template string itself, effectively?
+        # No, we probably want to render it during the variation process?
+        # But generate_image_variation is generic.
+        
+        # Let's assume we pass the *template name* or *pre-rendered part*?
+        # "A professional ... of [Ingredient Name]..." was existing.
+        # The new template is "A professional ... of {{ subject_description }}..."
+        
+        # In generate_image_variation, we have:
+        # if "[Subject]" in fixed_prompt: ...
+        
+        # So sticking to the current architecture:
+        # usages of generate_image_variation pass a 'fixed_prompt'.
+        
+        # We can load the template string, treating it as a format string for generate_image_variation?
+        # Or better: We change process_external_image to do the 2 steps itself using the prompt manager?
+        # No, let's keep it simple. We will load the template, and pass it.
+        # But wait, PromptManager.load_prompt RENDERs it.
+        # We generally want to render it AFTER we get the subject from the image.
+        
+        # So:
+        # 1. process_external_image gets image.
+        # 2. It calls generate_image_variation
+        # 3. generate_image_variation gets the description.
+        # 4. prompt = load_prompt('style_cookbook.jinja2', subject_description=desc)
+        # 5. generate_actual_image(prompt)
+        
+        # But I am editing process_external_image, not generate_image_variation. 
+        # And generate_image_variation is a shared utility.
+        
+        # Let's Modify generate_image_variation to support a 'style_template_name' arg? 
+        # Or just do the logic inline here since refactoring the shared service might be risky if used elsewhere.
+        # Actually, let's look at generate_image_variation again.
+        
+        # It's better to refactor generate_image_variation to take an optional `template_name`?
+        # Or just reimplement the logic here since `process_external_image` is valid place for "Cookbook Style".
+        
+        # Let's reimplement step 1 & 2 here to use the proper template.
+        
+        # 1. Analyze Subject
+        vision_prompt = "Describe the MAIN SUBJECT of this food image in one concise sentence..."
+        image = Image.open(BytesIO(image_bytes))
+        
+        # Reuse client from outer scope
+        response = client.models.generate_content(
+            model='gemini-2.0-flash-exp',
+            contents=[vision_prompt, image]
+        )
+        subject_description = response.text.strip()
+        
+        # 2. Render Prompt
+        cookbook_prompt = load_prompt('style_cookbook.jinja2', subject_description=subject_description)
+        
+        # 3. Generate
+        return generate_actual_image(cookbook_prompt)
 
     except Exception as e:
         print(f"Error processing external image: {e}")

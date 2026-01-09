@@ -87,6 +87,8 @@
                             <th class="p-4 w-12 text-center clickable hover:bg-slate-100 sticky top-0 bg-slate-50 z-10"
                                 title="Sodium (mg)">Sod</th>
                             <th class="p-4 w-24 text-center cursor-pointer hover:bg-slate-100 sticky top-0 bg-slate-50 z-10"
+                                onclick="sortTable('date')">Date Added</th>
+                            <th class="p-4 w-24 text-center cursor-pointer hover:bg-slate-100 sticky top-0 bg-slate-50 z-10"
                                 onclick="sortTable('basic')">Basic?</th>
                         </tr>
                         <!-- Row 2: Filters -->
@@ -139,6 +141,7 @@
                             <th class="sticky top-[50px] bg-slate-50 z-10"></th>
                             <th class="sticky top-[50px] bg-slate-50 z-10"></th>
                             <th class="sticky top-[50px] bg-slate-50 z-10"></th>
+                            <th class="sticky top-[50px] bg-slate-50 z-10"></th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100" id="ingredientTableBody">
@@ -148,7 +151,7 @@
                             data-subcategory="{{ ing.sub_category or '-' }}" data-name="{{ ing.name }}"
                             data-unit="{{ ing.default_unit }}" data-cal="{{ ing.calories_per_100g or 0 }}"
                             data-prot="{{ ing.protein_per_100g or 0 }}" data-carb="{{ ing.carbs_per_100g or 0 }}"
-                            data-fat="{{ ing.fat_per_100g or 0 }}"
+                            data-fat="{{ ing.fat_per_100g or 0 }}" data-date="{{ ing.created_at or '' }}"
                             data-basic="{{ 'yes' if ing.is_basic_ingredient else 'no' }}">
 
                             <!-- A: Main Category -->
@@ -241,6 +244,11 @@
                                 {{ ing.fiber_per_100g|round(1) if ing.fiber_per_100g is not none else '-' }}</td>
                             <td class="p-4 text-xs text-slate-400 text-center tabular-nums font-mono align-middle">{{
                                 ing.sodium_mg_per_100g|int if ing.sodium_mg_per_100g is not none else '-' }}</td>
+
+                            <!-- Date Added -->
+                            <td class="p-4 text-xs text-slate-500 text-center align-middle whitespace-nowrap">
+                                {{ ing.created_at[:10] if ing.created_at else '-' }}
+                            </td>
 
                             <!-- Basic Toggle -->
                             <td class="p-4 text-center cursor-pointer select-none align-middle"
@@ -726,12 +734,29 @@
         } catch (e) { alert("Error saving"); }
     }
 
-    async function deleteIngredient(id, name) {
-        if (!confirm(`Delete ${name}?`)) return;
+    async function deleteIngredient(id, name, force = false) {
+        if (!force && !confirm(`Delete ${name}?`)) return;
+
+        const url = force ? `/api/ingredient/${id}?force=true` : `/api/ingredient/${id}`;
+
         try {
-            await fetch(`/api/ingredient/${id}`, { method: 'DELETE' });
-            window.location.reload();
-        } catch (e) { alert("Error deleting"); }
+            const response = await fetch(url, { method: 'DELETE' });
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                window.location.reload();
+            } else if (data.requires_confirmation) {
+                // Show the specific recipes and ask again
+                if (confirm(data.message)) {
+                    deleteIngredient(id, name, true);
+                }
+            } else {
+                alert(`Error: ${data.error || "Failed to delete"}`);
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Error deleting: " + e);
+        }
     }
 </script>
 {% endblock %}

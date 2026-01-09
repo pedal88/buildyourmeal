@@ -22,7 +22,7 @@ os.makedirs(BACKUP_DIR, exist_ok=True)
 @studio_bp.route('/prompts')
 def studio_ui():
     """Render the Studio UI."""
-    return current_app.jinja_env.get_template('studio/prompts.html').render()
+    return current_app.jinja_env.get_template('studio/prompt_ide.html').render()
 
 @studio_bp.route('/api/prompts', methods=['GET'])
 def list_prompts():
