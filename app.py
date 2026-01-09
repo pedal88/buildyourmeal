@@ -17,6 +17,11 @@ from sqlalchemy import func
 
 app = Flask(__name__)
 
+# Register Blueprints
+from routes.studio_routes import studio_bp
+app.register_blueprint(studio_bp)
+
+
 @app.template_filter('parse_chef_dna')
 def parse_chef_dna(prompt):
     """Extracts sections from the system prompt for display."""

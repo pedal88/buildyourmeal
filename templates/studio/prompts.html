@@ -1,0 +1,327 @@
+{% extends "base.html" %}
+
+{% block title %}Prompt Studio{% endblock %}
+
+{% block head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.7/ace.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.7/mode-jinja.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.7/mode-json.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.7/theme-chrome.js"></script>
+<style>
+    .editor-container {
+        height: 500px;
+        width: 100%;
+        border-radius: 0.5rem;
+        border: 1px solid #cbd5e1;
+    }
+
+    .var-editor {
+        height: 100px;
+        width: 100%;
+        border: 1px solid #cbd5e1;
+        border-radius: 0.375rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex h-[calc(100vh-64px)] overflow-hidden">
+    <!-- Sidebar -->
+    <div class="w-64 bg-slate-50 border-r border-slate-200 flex flex-col">
+        <div class="p-4 border-b border-slate-200">
+            <h2 class="font-bold text-slate-700">Prompts</h2>
+            <button onclick="refreshFileList()" class="text-xs text-orange-600 hover:text-orange-700 mt-1">Refresh
+                List</button>
+        </div>
+        <div class="flex-1 overflow-y-auto p-2 space-y-1" id="fileList">
+            <!-- File List -->
+            <div class="animate-pulse h-4 bg-slate-200 rounded w-3/4 mx-2 mt-2"></div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="flex-1 flex flex-col overflow-hidden bg-white">
+        <!-- Toolbar -->
+        <div class="h-14 border-b border-slate-200 flex items-center justify-between px-4 bg-white z-10">
+            <div class="flex items-center gap-3">
+                <span id="currentFilename" class="font-mono font-bold text-slate-800">No file selected</span>
+                <span id="statusBadge"
+                    class="hidden text-xs px-2 py-0.5 rounded bg-yellow-100 text-yellow-800">Unsaved</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="saveCurrentHelp()"
+                    class="px-4 py-2 bg-slate-800 text-white text-sm font-medium rounded hover:bg-slate-700 transition">Save
+                    Prompt</button>
+            </div>
+        </div>
+
+        <!-- Split View -->
+        <div class="flex-1 flex overflow-hidden">
+            <!-- Editor Pane -->
+            <div class="w-1/2 flex flex-col border-r border-slate-200 p-4 overflow-y-auto">
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Jinja2 Template</label>
+                <div id="mainEditor" class="editor-container"></div>
+            </div>
+
+            <!-- Testing Pane -->
+            <div class="w-1/2 flex flex-col p-4 bg-slate-50 overflow-y-auto">
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Test Runner</label>
+
+                <!-- Controls -->
+                <div class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm mb-4">
+                    <div class="flex gap-4 mb-4">
+                        <div class="flex-1">
+                            <label class="block text-xs text-slate-500 mb-1">Runner</label>
+                            <select id="runnerSelect" class="w-full text-sm border-slate-300 rounded-md shadow-sm">
+                                <option value="gemini_text">Gemini Text (Flash)</option>
+                                <option value="vertex_image">Vertex Image (Imagen 3)</option>
+                            </select>
+                        </div>
+                        <div class="flex items-end">
+                            <button onclick="runTest()" id="btnRun"
+                                class="px-6 py-2 bg-orange-600 text-white text-sm font-bold rounded hover:bg-orange-500 shadow-sm flex items-center gap-2">
+                                <span>▶ Run Test</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="border-t border-slate-100 pt-3">
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Variables (JSON)</label>
+                        <div id="variablesContainer" class="space-y-3">
+                            <div class="text-xs text-slate-400 italic">Select a template to configure variables.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Output -->
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Output</label>
+                <div id="outputArea"
+                    class="flex-1 bg-white border border-slate-200 rounded p-4 overflow-auto font-mono text-xs whitespace-pre-wrap min-h-[200px]">
+                    <span class="text-slate-300">Run a test to see output...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // State
+    let currentFile = null;
+    let varEditors = {};
+
+    // Initialize Ace
+    const editor = ace.edit("mainEditor");
+    editor.setTheme("ace/theme/chrome");
+    editor.session.setMode("ace/mode/jinja");
+    editor.setOptions({
+        fontSize: "14px",
+        showPrintMargin: false,
+    });
+
+    editor.session.on('change', () => {
+        document.getElementById('statusBadge').classList.remove('hidden');
+    });
+
+    // 1. List Files
+    async function refreshFileList() {
+        const listEl = document.getElementById('fileList');
+        listEl.innerHTML = '<div class="animate-pulse h-4 bg-slate-200 rounded w-3/4 mx-2 mt-2"></div>';
+
+        try {
+            const res = await fetch('/studio/api/prompts');
+            const data = await res.json();
+
+            listEl.innerHTML = '';
+
+            if (data.success) {
+                data.files.forEach(file => {
+                    const btn = document.createElement('button');
+                    btn.className = "w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-orange-50 hover:text-orange-700 rounded transition truncate";
+                    btn.innerText = file;
+                    btn.onclick = () => loadFile(file);
+
+                    if (currentFile === file) btn.classList.add('bg-orange-100', 'text-orange-800', 'font-medium');
+
+                    listEl.appendChild(btn);
+                });
+            } else {
+                listEl.innerHTML = `<div class="text-xs text-red-500 p-2">${data.error}</div>`;
+            }
+        } catch (e) {
+            listEl.innerHTML = `<div class="text-xs text-red-500 p-2">Connection Error</div>`;
+        }
+    }
+
+    // 2. Load File
+    async function loadFile(filename) {
+        currentFile = filename;
+        refreshFileList(); // Update active state UI
+
+        document.getElementById('currentFilename').innerText = filename;
+        document.getElementById('statusBadge').classList.add('hidden');
+
+        try {
+            const res = await fetch(`/studio/api/prompts/${filename}`);
+            const data = await res.json();
+
+            if (data.success) {
+                editor.setValue(data.content, -1);
+                renderVariables(data.variables);
+            } else {
+                alert("Error loading file: " + data.error);
+            }
+        } catch (e) {
+            alert("Error loading file: " + e.message);
+        }
+    }
+
+    // 3. Render Variables
+    function renderVariables(vars) {
+        const container = document.getElementById('variablesContainer');
+        container.innerHTML = '';
+        varEditors = {}; // Reset
+
+        if (!vars || vars.length === 0) {
+            container.innerHTML = '<div class="text-xs text-slate-400">No variables detected.</div>';
+            return;
+        }
+
+        vars.forEach((v, idx) => {
+            const wrapper = document.createElement('div');
+
+            const label = document.createElement('label');
+            label.className = "block text-xs font-medium text-slate-600 mb-1 font-mono text-orange-600";
+            label.innerText = "{" + "{ " + v + " }" + "}";
+
+            const editorDiv = document.createElement('div');
+            editorDiv.id = `var-editor-${idx}`;
+            editorDiv.className = "var-editor";
+
+            wrapper.appendChild(label);
+            wrapper.appendChild(editorDiv);
+            container.appendChild(wrapper);
+
+            // Init Ace for this variable
+            const vEd = ace.edit(editorDiv.id);
+            vEd.setTheme("ace/theme/chrome");
+            vEd.session.setMode("ace/mode/json");
+            vEd.setOptions({
+                fontSize: "12px",
+                showLineNumbers: false,
+                showPrintMargin: false,
+                showGutter: false
+            });
+
+            // Set default value based on name heuristics
+            let defaultVal = '""';
+            if (v.includes('list') || v.includes('context')) defaultVal = '[]';
+            if (v.includes('details') || v.includes('query')) defaultVal = '"Test String"';
+
+            vEd.setValue(defaultVal, -1);
+
+            varEditors[v] = vEd;
+        });
+    }
+
+    // 4. Save
+    async function saveCurrentHelp() {
+        if (!currentFile) return;
+
+        const content = editor.getValue();
+
+        try {
+            const res = await fetch('/studio/api/prompts/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    filename: currentFile,
+                    content: content
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                document.getElementById('statusBadge').classList.add('hidden');
+                alert("Saved successfully!");
+            } else {
+                alert("Error saving: " + data.error);
+            }
+        } catch (e) {
+            alert("Error saving: " + e.message);
+        }
+    }
+
+    // 5. Run Test
+    async function runTest() {
+        if (!currentFile) return;
+
+        const btn = document.getElementById('btnRun');
+        const output = document.getElementById('outputArea');
+        const runner = document.getElementById('runnerSelect').value;
+
+        btn.disabled = true;
+        btn.classList.add('opacity-50', 'cursor-not-allowed');
+        output.innerHTML = '<div class="animate-pulse text-slate-400">Running...</div>';
+
+        // Collect Variables
+        const vars = {};
+        for (const [key, vEditor] of Object.entries(varEditors)) {
+            try {
+                // Try parse JSON, else treat as string if raw string
+                const raw = vEditor.getValue();
+                vars[key] = JSON.parse(raw);
+            } catch (e) {
+                // Determine if user intended a string but didn't quote it?
+                // For safety in this prompt studio, we force valid JSON or strings wrapped in quotes.
+                // But to be nice, we can fallback to raw string.
+                vars[key] = vEditor.getValue();
+            }
+        }
+
+        try {
+            const res = await fetch('/studio/api/prompts/test', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    filename: currentFile,
+                    variables: vars,
+                    runner: runner
+                })
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                output.innerHTML = "";
+
+                // Show Rendered Prompt (Collapsed or Top)
+                const promptDebug = document.createElement('div');
+                promptDebug.className = "mb-4 pb-4 border-b border-slate-100 text-slate-500 text-[10px]";
+                promptDebug.innerText = "RENDERED INPUT:\n" + data.rendered_prompt;
+                output.appendChild(promptDebug);
+
+                // Show Result
+                const resDiv = document.createElement('div');
+                if (data.result.startsWith('<img')) {
+                    resDiv.innerHTML = data.result; // Trusted HTML from backend
+                } else {
+                    resDiv.innerText = typeof data.result === 'object' ? JSON.stringify(data.result, null, 2) : data.result;
+                }
+                output.appendChild(resDiv);
+
+            } else {
+                output.innerHTML = `<span class="text-red-600">Error: ${data.error}</span>`;
+            }
+
+        } catch (e) {
+            output.innerHTML = `<span class="text-red-600">Network Error: ${e.message}</span>`;
+        } finally {
+            btn.disabled = false;
+            btn.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+    }
+
+    // Init
+    refreshFileList();
+</script>
+{% endblock %}

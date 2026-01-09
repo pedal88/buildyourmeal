@@ -30,6 +30,26 @@ class VertexImageGenerator:
         else:
             self.client = None
             print("WARNING: GOOGLE_API_KEY not set. VertexImageGenerator will fail.")
+            
+        # Initialize Jinja2 Env
+        try:
+            from jinja2 import Environment, FileSystemLoader
+            self.jinja_env = Environment(loader=FileSystemLoader(os.path.join(self.root_path, 'data', 'prompts')))
+        except Exception as e:
+            print(f"Warning: Jinja2 initialization failed: {e}")
+            self.jinja_env = None
+
+    def get_prompt(self, ingredient_name, visual_details=""):
+        if not self.jinja_env:
+            return f"A professional studio food photography shot of {ingredient_name}. {visual_details}"
+            
+        try:
+            template = self.jinja_env.get_template('ingredient_image.jinja2')
+            return template.render(ingredient_name=ingredient_name, visual_details=visual_details)
+        except Exception as e:
+            print(f"Error rendering prompt: {e}")
+            return f"A professional studio food photography shot of {ingredient_name}."
+
 
     def _get_safe_filename(self, name: str) -> str:
         """Converts ingredient name to safe filename: 'Beef Ribeye' -> 'beef_ribeye.png'"""
