@@ -645,18 +645,9 @@ def recipes_table_view():
                          current_sort=sort_col,
                          current_dir=sort_dir)
 
-@app.route('/ingredients')
-def pantry_list():
-    # Fetch all ingredients for the visual pantry grid
-    ingredients = db.session.execute(db.select(Ingredient).order_by(Ingredient.name)).scalars().all()
-    
-    # Get unique categories for the filter dropdown
-    categories = db.session.execute(db.select(Ingredient.main_category).distinct()).scalars().all()
-    categories = [c for c in categories if c] # Filter None
-    
-    return render_template('pantry.html', ingredients=ingredients, categories=sorted(categories))
 
-@app.route('/pantry')
+
+@app.route('/ingredients')
 def pantry_management():
     # Fetch all ingredients sorted by Category then Name
     ingredients = db.session.execute(db.select(Ingredient).order_by(Ingredient.main_category, Ingredient.name)).scalars().all()

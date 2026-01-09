@@ -682,7 +682,7 @@
 
             if (result.success) {
                 alert(EDIT_ID ? 'Ingredient updated!' : 'Ingredient saved!');
-                window.location.href = '/pantry';
+                window.location.href = '/ingredients';
             } else {
                 alert('Error saving: ' + result.error);
             }
@@ -761,7 +761,7 @@
 
             if (res.success) {
                 alert(res.message);
-                window.location.href = '/pantry';
+                window.location.href = '/ingredients';
             } else {
                 alert("Merge failed: " + res.error);
             }
