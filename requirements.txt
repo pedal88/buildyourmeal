@@ -7,3 +7,4 @@ beautifulsoup4
 requests
 google-cloud-aiplatform>=1.38.0
 google-cloud-texttospeech
+flask-login

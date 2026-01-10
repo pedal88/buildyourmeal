@@ -1,6 +1,8 @@
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy import String, Integer, Boolean, Text, Float, ForeignKey
+from flask_login import UserMixin
+from werkzeug.security import generate_password_hash, check_password_hash
 
 class Base(DeclarativeBase):
     pass
@@ -122,3 +124,17 @@ class RecipeIngredient(db.Model):
 
     recipe: Mapped["Recipe"] = relationship(back_populates="ingredients")
     ingredient: Mapped["Ingredient"] = relationship(back_populates="recipe_ingredients")
+
+class User(UserMixin, db.Model):
+    __tablename__ = 'user'
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    email: Mapped[str] = mapped_column(String(150), unique=True, nullable=False)
+    password_hash: Mapped[str] = mapped_column(String(256), nullable=False)
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+

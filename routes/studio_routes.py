@@ -5,6 +5,8 @@ import shutil
 import uuid
 from datetime import datetime
 from flask import Blueprint, jsonify, request, current_app
+from flask_login import login_required
+from utils.decorators import admin_required
 from jinja2 import Environment, FileSystemLoader
 
 # Import Services for Test Runner
@@ -22,11 +24,15 @@ os.makedirs(PROMPTS_DIR, exist_ok=True)
 os.makedirs(BACKUP_DIR, exist_ok=True)
 
 @prompts_bp.route('/')
+@login_required
+@admin_required
 def studio_ui():
     """Render the Studio UI."""
     return current_app.jinja_env.get_template('studio/prompt_ide.html').render()
 
 @prompts_bp.route('/api/prompts', methods=['GET'])
+@login_required
+@admin_required
 def list_prompts():
     """List all .jinja2 files in the prompts directory (recursively)."""
     try:
@@ -58,6 +64,8 @@ def save_meta_data(data):
     with open(META_FILE, 'w') as f: json.dump(data, f, indent=2)
 
 @prompts_bp.route('/api/prompts/<path:filename>', methods=['GET'])
+@login_required
+@admin_required
 def get_prompt(filename):
     """Read a specific prompt file and detect variables."""
     # Security check: disallow directory traversal
@@ -94,6 +102,8 @@ def get_prompt(filename):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @prompts_bp.route('/api/prompts/save', methods=['POST'])
+@login_required
+@admin_required
 def save_prompt():
     """Backup current file and overwrite with new content."""
     try:
@@ -137,6 +147,8 @@ def save_prompt():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @prompts_bp.route('/api/prompts/test', methods=['POST'])
+@login_required
+@admin_required
 def test_prompt():
     """Test the prompt with a specific runner."""
     try:
@@ -315,6 +327,8 @@ def test_prompt():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @prompts_bp.route('/api/resources/save', methods=['POST'])
+@login_required
+@admin_required
 def save_resource():
     try:
         article_data = request.get_json()
@@ -378,6 +392,8 @@ def save_resource():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @prompts_bp.route('/api/podcasts/save', methods=['POST'])
+@login_required
+@admin_required
 def save_podcast():
     try:
         data = request.get_json()

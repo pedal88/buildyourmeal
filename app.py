@@ -1,7 +1,9 @@
 import os
 import uuid
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
-from database.models import db, Ingredient, Recipe, Instruction, RecipeIngredient, RecipeMealType
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, abort
+from flask_login import LoginManager, login_user, login_required, logout_user, current_user
+from database.models import db, Ingredient, Recipe, Instruction, RecipeIngredient, RecipeMealType, User
+from utils.decorators import admin_required
 from sqlalchemy import or_
 from services.pantry_service import get_slim_pantry_context
 from ai_engine import generate_recipe_ai, get_pantry_id, chefs_data, generate_recipe_from_web_text, analyze_ingredient_ai
@@ -87,9 +89,46 @@ def utility_processor():
 
 db.init_app(app)
 
+# Initialize Flask-Login
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+
+@login_manager.user_loader
+def load_user(user_id):
+    return db.session.get(User, int(user_id))
+
+# AUTH ROUTES
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if current_user.is_authenticated:
+         return redirect(url_for('studio_view'))
+    
+    if request.method == 'POST':
+        email = request.form.get('email')
+        password = request.form.get('password')
+        user = db.session.execute(db.select(User).where(User.email == email)).scalar()
+        
+        if user and user.check_password(password):
+            login_user(user)
+            next_page = request.args.get('next')
+            return redirect(next_page or url_for('studio_view'))
+        
+        flash('Invalid email or password', 'error')
+    
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    logout_user()
+    flash('You have been logged out.', 'info')
+    return redirect(url_for('index'))
+
 # PHOTOGRAPHER ROUTES
 
 @app.route('/admin/studio', methods=['GET', 'POST'])
+@login_required
+@admin_required
 def studio_view():
     prompt = None
     recipe_text = ""
@@ -132,6 +171,8 @@ def studio_view():
                          ingredients_list=ingredients_list)
 
 @app.route('/admin/studio/snap', methods=['POST'])
+@login_required
+@admin_required
 def studio_snap():
     prompt = request.form.get('visual_prompt')
     recipe_text = request.form.get('recipe_text') # Retrieve context
@@ -172,6 +213,8 @@ def studio_snap():
                              ingredients_list=ingredients_list)
 
 @app.route('/admin/studio/save', methods=['POST'])
+@login_required
+@admin_required
 def save_recipe_image():
     filename = request.form.get('filename')
     recipe_id = request.form.get('recipe_id')
@@ -208,6 +251,8 @@ def save_recipe_image():
 
 
 @app.route('/admin/studio/analyze', methods=['POST'])
+@login_required
+@admin_required
 def studio_analyze():
     try:
         # A1: Text Input -> Generate Prompt
@@ -245,6 +290,8 @@ def studio_analyze():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/admin/studio/generate', methods=['POST'])
+@login_required
+@admin_required
 def studio_generate():
     try:
         # B1: Text-to-Image
@@ -456,6 +503,8 @@ def load_json_option(filename, key):
         return []
 
 @app.route('/admin/chefs')
+@login_required
+@admin_required
 def chefs_list():
     diets_data = load_json_option('diets_tag.json', 'diets')
     
@@ -474,6 +523,8 @@ def chefs_list():
     return render_template('chefs.html', chefs=chefs_data, diets_list=diets_data, grouped_methods=grouped_methods)
 
 @app.route('/admin/chefs/save', methods=['POST'])
+@login_required
+@admin_required
 def save_chefs_json():
     try:
         data = request.get_json()

@@ -3,7 +3,7 @@
         "id": "mastering-knife-skills",
         "slug": "mastering-knife-skills",
         "title": "Mastering Basic Knife Skills: A Chef's Guide",
-        "summary": "Learn the fundamental cuts—julienne, chiffonade, and brunoise—that will transform your cooking speed and presentation. Proper knife handling is safer and more efficient.",
+        "summary": "Learn the fundamental cuts\u2014julienne, chiffonade, and brunoise\u2014that will transform your cooking speed and presentation. Proper knife handling is safer and more efficient.",
         "content_markdown": "## Introduction\n\nGood knife skills are the most important tools in a cook's arsenal. They make cooking faster, safer, and more enjoyable. Uniform cuts ensure even cooking and better presentation.\n\n### The Grip\n\nHold the knife by gripping the blade with your thumb and index finger (the pinch grip) rather than just holding the handle. This gives you more control.\n\n### The Claw\n\nSafety first! Curl your fingertips under like a claw when holding the food to protect them from the blade.\n\n### Basic Cuts\n\n1. **Julienne**: Fine matchsticks.\n2. **Brunoise**: Tiny cubes made from julienne.\n3. **Chiffonade**: Fine ribbons of leafy greens.\n\nPractice with soft vegetables like celery or onions before moving to harder ones.",
         "tags": [
             "technique",
@@ -48,6 +48,29 @@
         "meta": {
             "author": "Chef AI",
             "read_time": 4
+        }
+    },
+    {
+        "id": "cooking-oils-101",
+        "slug": "cooking-oils-101",
+        "title": "Cooking Oils 101: A Guide to Choosing the Right Fat",
+        "summary": "Navigating the world of cooking oils can be overwhelming. This guide breaks down the most common and versatile oils, exploring their properties, best uses, and potential drawbacks to help you choose the right fat for every dish.",
+        "content_markdown": "## Cooking Oils 101: A Guide to Choosing the Right Fat\n\nChoosing the right cooking oil is crucial for achieving optimal flavor, texture, and even nutritional value in your dishes. This guide will explore some of the most common cooking oils, detailing their smoke points, flavor profiles, and ideal uses.\n\n### Understanding Smoke Point\n\nThe **smoke point** of an oil is the temperature at which it begins to break down and release acrid smoke. Cooking beyond this point not only affects the flavor of your food but can also produce harmful compounds. It's essential to choose an oil with a smoke point appropriate for your cooking method. For example, high-heat cooking like deep-frying requires oils with high smoke points.\n\n### Common Cooking Oils\n\n*   **Olive Oil:** A staple in many kitchens, olive oil comes in several varieties.\n    *   **Extra Virgin Olive Oil (EVOO):** The highest quality, with a low smoke point (around 375\u00b0F) and a distinct flavor. Best for dressings, finishing dishes, and low-heat saut\u00e9ing.\n        *   **Pros:** Rich in antioxidants and healthy fats; adds robust flavor.\n        *   **Cons:** Low smoke point makes it unsuitable for high-heat cooking; can be expensive.\n    *   **Refined Olive Oil/Light Olive Oil:** Higher smoke point (around 465\u00b0F) and a more neutral flavor. Suitable for saut\u00e9ing and baking.\n        *   **Pros:** More versatile than EVOO due to higher smoke point; less expensive.\n        *   **Cons:** Lacks the rich flavor and nutritional benefits of EVOO.\n*   **Canola Oil:** A neutral-flavored oil with a high smoke point (around 400\u00b0F). A versatile all-purpose oil suitable for saut\u00e9ing, baking, and frying.\n    *   **Pros:** Inexpensive; high smoke point; neutral flavor.\n    *   **Cons:** Can be highly processed; lacks distinct flavor.\n*   **Vegetable Oil:** Typically a blend of different oils, such as soybean, corn, and sunflower. The smoke point varies depending on the blend, but is generally around 400-450\u00b0F. Often used for frying and baking.\n    *   **Pros:** Inexpensive; readily available.\n    *   **Cons:** Can be highly processed; flavor can be bland or slightly off-putting.\n*   **Coconut Oil:** Has a distinct coconut flavor and a medium-high smoke point (around 350\u00b0F for unrefined, 450\u00b0F for refined). Used in baking, saut\u00e9ing, and stir-fries.\n    *   **Pros:** Unique flavor; adds moisture to baked goods.\n    *   **Cons:** Strong flavor that may not be suitable for all dishes; high in saturated fat.\n*   **Avocado Oil:** A relatively new addition to the cooking oil scene, avocado oil has a very high smoke point (around 520\u00b0F) and a mild, slightly nutty flavor. Excellent for high-heat cooking like searing and grilling.\n    *   **Pros:** Very high smoke point; healthy fats; mild flavor.\n    *   **Cons:** Can be expensive.\n*   **Peanut Oil:** Another high smoke point oil (around 450\u00b0F) with a mild, nutty flavor. Commonly used for deep-frying.\n    *   **Pros:** High smoke point; adds subtle flavor to fried foods.\n    *   **Cons:** Potential allergen; can be expensive.\n*   **Sesame Oil:** Offers a strong, nutty flavor and a medium smoke point (around 410\u00b0F for refined, 350\u00b0F for unrefined). Used in Asian cuisine for stir-fries and finishing dishes.\n    *   **Pros:** Adds intense flavor; good source of antioxidants.\n    *   **Cons:** Low smoke point for unrefined; strong flavor may not be suitable for all dishes.\n\n### Choosing the Right Oil\n\nConsider these factors when selecting a cooking oil:\n\n*   **Cooking method:** High-heat cooking requires oils with high smoke points.\n*   **Flavor profile:** Choose an oil that complements the flavors of your dish.\n*   **Nutritional value:** Some oils are richer in healthy fats and antioxidants than others.\n*   **Budget:** Prices vary significantly among different types of oils.\n\nBy understanding the properties of different cooking oils, you can make informed choices and elevate your culinary creations. Remember that experimentation is key. Try different oils and discover your favorites!",
+        "tags": [
+            "cooking oils",
+            "smoke point",
+            "culinary fats",
+            "olive oil",
+            "canola oil",
+            "avocado oil"
+        ],
+        "image_filename": "/static/resources/cooking-oils-101_6559cf.png",
+        "related_slugs": [
+            "pantry-essentials"
+        ],
+        "meta": {
+            "author": "Chef AI",
+            "read_time": 7
         }
     }
 ]

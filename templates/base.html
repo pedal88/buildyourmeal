@@ -91,6 +91,8 @@
                 <a href="/become-a-chef" class="hover:text-orange-600 transition-colors">Become a Chef</a>
                 <a href="/recipes_list" class="hover:text-orange-600 transition-colors">Recipe Table</a>
 
+                {% if current_user.is_authenticated %}
+                {% if current_user.is_admin %}
                 <!-- Admin Dropdown -->
                 <div class="relative group">
                     <button class="flex items-center gap-1 hover:text-orange-600 transition-colors focus:outline-none">
@@ -132,6 +134,16 @@
                         </div>
                     </div>
                 </div>
+                {% endif %}
+
+                <div class="flex items-center gap-3 border-l pl-4 ml-2">
+                    <span class="text-xs text-slate-400">{{ current_user.email }}</span>
+                    <a href="{{ url_for('logout') }}" class="hover:text-orange-600 transition-colors">Logout</a>
+                </div>
+                {% else %}
+                <a href="{{ url_for('login') }}"
+                    class="hover:text-orange-600 transition-colors ml-4 font-semibold text-orange-600">Admin Login</a>
+                {% endif %}
             </div>
         </nav>
     </header>
