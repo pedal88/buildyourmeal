@@ -10,6 +10,7 @@ from jinja2 import Environment, FileSystemLoader
 # Import Services for Test Runner
 import ai_engine
 from services.vertex_image_service import VertexImageGenerator
+from services.podcast_service import PodcastGenerator
 
 prompts_bp = Blueprint('prompts', __name__, url_prefix='/admin/prompts')
 
@@ -72,8 +73,11 @@ def get_prompt(filename):
             content = f.read()
             
         # Detect Variables: {{ variable_name }}
+        # Detect Variables: {{ variable_name }}
         pattern = r'\{\{\s*([a-zA-Z0-9_]+)\s*\}\}'
-        variables = list(set(re.findall(pattern, content)))
+        all_vars = set(re.findall(pattern, content))
+        # Filter out system variables (starting with _)
+        variables = [v for v in all_vars if not v.startswith('_')]
         variables.sort()
         
         # Load Description from Meta
@@ -218,7 +222,10 @@ def test_prompt():
                 pass # First run
 
             # 2. Render Prompt with Context
-            variables['existing_library_context'] = json.dumps(existing_slugs)
+            if not variables.get('user_description'):
+                return jsonify({'success': False, 'error': 'Please provide a "user_description" for the article.'}), 400
+
+            variables['_existing_library_context'] = json.dumps(existing_slugs)
             rendered_prompt = template.render(**variables)
 
             # 3. Generate Text (Article JSON)
@@ -246,6 +253,52 @@ def test_prompt():
                 article_json['temp_image_path'] = res['local_path']
             
             result = article_json
+
+            result = article_json
+
+        elif runner == 'podcast_ingredient':
+            # 1. Generate Script (Gemini JSON)
+            print("DEBUG: Generating Podcast Script...")
+            model = 'gemini-2.0-flash-exp'
+            rendered_prompt = template.render(**variables)
+            
+            response = ai_engine.client.models.generate_content(
+                model=model,
+                contents=rendered_prompt,
+                config={'response_mime_type': 'application/json'}
+            )
+            
+            script_json = []
+            try:
+                script_json = json.loads(response.text)
+            except:
+                script_json = [{"speaker": "System", "text": "Error parsing JSON script."}]
+                
+            # 2. Synthesize Audio
+            print("DEBUG: Synthesizing Audio...")
+            gen = PodcastGenerator()
+            if gen.client:
+                audio_bytes = gen.generate_audio(script_json)
+                
+                # 3. Save Temp File
+                temp_dir = os.path.join(os.getcwd(), 'static', 'temp')
+                os.makedirs(temp_dir, exist_ok=True)
+                temp_filename = f"podcast_test_{uuid.uuid4().hex[:6]}.mp3"
+                temp_path = os.path.join(temp_dir, temp_filename)
+                
+                with open(temp_path, 'wb') as f:
+                    f.write(audio_bytes)
+                    
+                result = {
+                    "audio_url": f"/static/temp/{temp_filename}",
+                    "temp_path": temp_path,
+                    "script": script_json
+                }
+            else:
+                result = {
+                    "error": "TTS Client not available (check logs/creds).",
+                    "script": script_json
+                }
 
         else:
             return jsonify({'success': False, 'error': f'Unknown runner: {runner}'}), 400
@@ -322,4 +375,29 @@ def save_resource():
     except Exception as e:
         import traceback
         traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@prompts_bp.route('/api/podcasts/save', methods=['POST'])
+def save_podcast():
+    try:
+        data = request.get_json()
+        temp_path = data.get('temp_path')
+        ingredient_name = data.get('ingredient_name', 'audio')
+        
+        if not temp_path or not os.path.exists(temp_path):
+             return jsonify({'success': False, 'error': 'Temp file missing'}), 400
+
+        # Create saved directory
+        podcasts_dir = os.path.join(os.getcwd(), 'static', 'podcasts')
+        os.makedirs(podcasts_dir, exist_ok=True)
+        
+        slug = re.sub(r'[^a-z0-9]+', '-', ingredient_name.lower()).strip('-')
+        filename = f"{slug}_{uuid.uuid4().hex[:6]}.mp3"
+        final_path = os.path.join(podcasts_dir, filename)
+        
+        shutil.move(temp_path, final_path)
+        
+        return jsonify({'success': True, 'path': f"/static/podcasts/{filename}"})
+
+    except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500

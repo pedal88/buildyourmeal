@@ -130,6 +130,13 @@
                             <span
                                 class="text-[10px] uppercase font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded hidden rec-badge">Recommended</span>
                         </button>
+
+                        <button onclick="setRunner('podcast_ingredient')" id="btn_podcast_ingredient"
+                            class="w-full text-left px-3 py-2 text-xs border rounded transition-all flex justify-between items-center group runner-btn border-slate-200 hover:border-indigo-300">
+                            <span>Podcast Generator (Audio)</span>
+                            <span
+                                class="text-[10px] uppercase font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded hidden rec-badge">Recommended</span>
+                        </button>
                     </div>
                 </div>
 
@@ -243,6 +250,8 @@
             rec = 'gemini_text'; // visual_description, image_analysis
         } else if (filename.includes('resource_writer')) {
             rec = 'article_generator';
+        } else if (filename.includes('resource_audio') || filename.includes('podcast')) {
+            rec = 'podcast_ingredient';
         }
 
         // Highlight recommended
@@ -496,6 +505,47 @@
                 else if (typeof data.result === 'string' && data.result.startsWith('<img') && runner === 'vertex_image') {
                     outputDiv.innerHTML = data.result; // HTML (Image)
                     document.getElementById('btnSaveResource').classList.add('hidden');
+                }
+                else if (data.success && runner === 'podcast_ingredient') {
+                    // Podcast Handling
+                    const res = data.result;
+                    if (res.audio_url) {
+                        lastPodcastResult = res; // Store for saving
+                        outputDiv.innerHTML = `
+                        <div class="p-4 bg-white rounded border border-slate-200">
+                            <h3 class="font-bold text-lg mb-4 text-slate-800">🎧 Generated Podcast</h3>
+                            <audio controls class="w-full mb-6 bg-slate-100 rounded">
+                                <source src="${res.audio_url}" type="audio/mpeg">
+                                Your browser does not support audio element.
+                            </audio>
+                            
+                            <h4 class="font-bold text-xs uppercase text-slate-400 mb-2">Transcript</h4>
+                            <div class="space-y-3 bg-slate-50 p-4 rounded max-h-60 overflow-y-auto text-sm">
+                                ${res.script.map(line => `
+                                    <div class="flex gap-2">
+                                        <span class="font-bold ${line.speaker === 'A' ? 'text-blue-600' : 'text-purple-600'} w-6 shrink-0">${line.speaker}:</span>
+                                        <span class="text-slate-700">${line.text}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+
+                        // Hook into the save button (reuse the resource button or make a new one? Reuse seems confusing given logic diffs)
+                        // Let's create a dedicated Save Podcast button dynamically or reuse the space
+                        // Ideally we should have separate buttons, but for speed, I'll hijack the "Save to Library" button 
+                        // and change its onclick handler behavior dynamically? No, cleaner to add a specific button.
+                        // But I didn't add a new button in HTML. 
+
+                        // Actually, I can use the existing save button but change its behavior via a global flag or check 'runner'
+                        const saveBtn = document.getElementById('btnSaveResource');
+                        saveBtn.classList.remove('hidden');
+                        saveBtn.innerText = "Save Podcast";
+                        saveBtn.onclick = savePodcast; // Rebind click
+                    } else {
+                        outputDiv.innerText = JSON.stringify(res, null, 2);
+                    }
+
                 } else {
                     outputDiv.innerText = typeof data.result === 'object' ? JSON.stringify(data.result, null, 2) : data.result;
                     document.getElementById('btnSaveResource').classList.add('hidden');
@@ -514,6 +564,44 @@
 
     // CMS Save Logic
     let lastArticleResult = null;
+    let lastPodcastResult = null;
+
+    async function savePodcast() {
+        if (!lastPodcastResult) return;
+        const btn = document.getElementById('btnSaveResource'); // We are reusing this button
+        btn.innerText = "Saving Audio...";
+        btn.disabled = true;
+
+        try {
+            // We need ingredient name from variables. 
+            const res = await fetch('/admin/prompts/api/podcasts/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    temp_path: lastPodcastResult.temp_path,
+                    ingredient_name: document.getElementById('var_ingredient_name')?.value || 'podcast'
+                })
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                btn.innerText = "Saved!";
+                btn.classList.replace('bg-green-600', 'bg-slate-500');
+                setTimeout(() => {
+                    btn.classList.add('hidden');
+                    btn.classList.replace('bg-slate-500', 'bg-green-600');
+                    btn.onclick = saveResourceFromPreview; // Reset
+                }, 3000);
+            } else {
+                alert("Error saving: " + data.error);
+                btn.innerText = "Save Failed";
+                btn.disabled = false;
+            }
+        } catch (e) {
+            alert(e);
+            btn.disabled = false;
+        }
+    }
 
     async function saveResourceFromPreview() {
         if (!lastArticleResult) return;

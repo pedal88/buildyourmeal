@@ -90,7 +90,8 @@ class VertexImageGenerator:
                 
                 return {
                     'success': True,
-                    'image_url': f"/static/pantry/candidates/{filename}"
+                    'image_url': f"/static/pantry/candidates/{filename}",
+                    'local_path': output_path
                 }
             else:
                  return {'success': False, 'error': "No image returned from API"}
