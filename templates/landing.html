@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% import "components/typography.html" as type %}
+{% import "components/cards.html" as card %}
+
+{% block title %}The AI Kitchen{% endblock %}
+
+{% block content %}
+
+
+<div class="bg-white py-12">
+    <div class="mx-auto max-w-7xl px-6 lg:px-8">
+        {{ type.page_header('Welcome to the culinary circus', 'The train is leaving the station - get onboard') }}
+
+        <!-- Recipes Carousel -->
+        {% if recipes %}
+        <div class="mb-16">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl font-serif font-bold text-slate-900">Recent Creations</h2>
+                <a href="/recipes" class="text-sm font-medium text-orange-600 hover:text-orange-500">View all →</a>
+            </div>
+
+            <div class="flex gap-6 overflow-x-auto pb-4 snap-x hide-scrollbar -mx-6 px-6 lg:mx-0 lg:px-0">
+                {% for recipe in recipes %}
+                <div class="min-w-[280px] w-[280px] snap-center">
+                    {{ card.recipe_preview_card(recipe, recipe.id) }}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Resources Carousel -->
+        {% if resources %}
+        <div>
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl font-serif font-bold text-slate-900">Learn & Explore</h2>
+                <a href="/become-a-chef" class="text-sm font-medium text-blue-600 hover:text-blue-500">View all →</a>
+            </div>
+
+            <div class="flex gap-6 overflow-x-auto pb-4 snap-x hide-scrollbar -mx-6 px-6 lg:mx-0 lg:px-0">
+                {% for resource in resources %}
+                <div class="min-w-[300px] w-[300px] snap-center">
+                    {{ card.resource_preview_card(resource) }}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+</div>
+{% endblock %}

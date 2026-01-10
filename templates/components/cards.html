@@ -85,3 +85,44 @@ Expects a RecipeIngredient object (ri) which has .ingredient relation and .amoun
     </div>
 </a>
 {% endmacro %}
+
+{% macro resource_preview_card(resource) %}
+<a href="/become-a-chef/{{ resource.id }}"
+    class="group block h-full bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-blue-200 transition-all duration-300 overflow-hidden flex flex-col">
+    <!-- Image / Gradient Placeholder -->
+    <div class="h-48 bg-slate-100 relative overflow-hidden">
+        {% if resource.image %}
+        <img src="{{ resource.image }}" alt="{{ resource.title }}"
+            class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+        {% else %}
+        <div class="absolute inset-0 bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center">
+            <span class="text-4xl">📚</span>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="p-5 flex flex-col flex-grow">
+        <!-- Meta -->
+        <div class="flex items-center gap-2 mb-3">
+            <span class="text-xs font-bold text-blue-600 uppercase tracking-wide">{{ resource.type }}</span>
+            <span class="text-slate-300">•</span>
+            <span class="text-xs text-slate-500">{{ resource.date }}</span>
+        </div>
+
+        <!-- Title -->
+        <h3
+            class="font-serif text-xl font-bold text-slate-900 mb-2 group-hover:text-blue-600 transition-colors line-clamp-2">
+            {{ resource.title }}
+        </h3>
+
+        <p class="text-sm text-slate-600 line-clamp-3 mb-4">
+            {{ resource.description }}
+        </p>
+
+        <!-- Read More Link (Visual) -->
+        <div class="mt-auto pt-2 flex items-center text-blue-600 font-medium text-sm group-hover:underline">
+            Read Article <span class="ml-1">→</span>
+        </div>
+    </div>
+</a>
+{% endmacro %}

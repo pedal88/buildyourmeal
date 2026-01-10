@@ -1,0 +1,38 @@
+[
+    {
+        "id": "mastering-knife-skills",
+        "title": "Mastering Basic Knife Skills: A Chef's Guide",
+        "type": "How-to",
+        "date": "Jan 10, 2026",
+        "description": "Learn the fundamental cuts—julienne, chiffonade, and brunoise—that will transform your cooking speed and presentation. Proper knife handling is safer and more efficient.",
+        "image": "https://images.unsplash.com/photo-1590794056226-79ef3a8147e1?auto=format&fit=crop&q=80&w=2000",
+        "content": "## Introduction\n\nGood knife skills are the most important tools in a cook's arsenal. They make cooking faster, safer, and more enjoyable. Uniform cuts ensure even cooking and better presentation.\n\n### The Grip\n\nHold the knife by gripping the blade with your thumb and index finger (the pinch grip) rather than just holding the handle. This gives you more control.\n\n### The Claw\n\nSafety first! Curl your fingertips under like a claw when holding the food to protect them from the blade.\n\n### Basic Cuts\n\n1. **Julienne**: Fine matchsticks.\n2. **Brunoise**: Tiny cubes made from julienne.\n3. **Chiffonade**: Fine ribbons of leafy greens.\n\nPractice with soft vegetables like celery or onions before moving to harder ones."
+    },
+    {
+        "id": "science-of-salt",
+        "title": "The Science of Salt: Why It Matters",
+        "type": "Deep Dive",
+        "date": "Jan 05, 2026",
+        "description": "Salt isn't just a flavor; it's a chemical tool that alters texture, suppresses bitterness, and enhances aroma. Understand when and how to salt for perfect results.",
+        "image": "https://images.unsplash.com/photo-1518112390430-f4ab02e9c2c8?auto=format&fit=crop&q=80&w=2000",
+        "content": "## Beyond Salty\n\nSalt (NaCl) acts as a flavor magnifier using two mechanisms:\n1. It reduces water activity, concentrating flavors.\n2. It suppresses our perception of bitterness, allowing sweetness and sourness to shine.\n\n### Types of Salt\n\n* **Table Salt**: Fine grain, often iodized. Good for baking, bad for finishing.\n* **Kosher Salt**: Flaky, easy to pinch. The chef's standard.\n* **Sea Salt**: Expensive, crunchy. Use for finishing only.\n\n### When to Salt\n\nSalting meat early (dry brining) allows salt to denature proteins and retain moisture."
+    },
+    {
+        "id": "pantry-essentials",
+        "title": "Building a Global Pantry on a Budget",
+        "type": "Article",
+        "date": "Dec 28, 2025",
+        "description": "You don't need a thousand ingredients to cook globally. These 15 essential spices, sauces, and grains unlock the cuisines of Italy, Thailand, Mexico, and more.",
+        "image": "https://images.unsplash.com/photo-1596560548464-f010549b84d7?auto=format&fit=crop&q=80&w=2000",
+        "content": "## The Strategy\n\nInstead of buying single-use ingredients, focusing on high-impact flavor bombs that cross cuisines.\n\n### The Essentials\n\n1. **Soy Sauce**: Essential for Asian cuisine, but adds depth to savory stews.\n2. **Cumin**: Used in Mexican, Indian, and Middle Eastern dishes.\n3. **Canned Tomatoes**: The base for pasta sauces, curries, and chilis.\n4. **Rice Vinegar**: Adds brightness to salads and stir-frys.\n\nStart small and build your collection around what you actually cook."
+    },
+    {
+        "id": "fermentation-intro",
+        "title": "Introduction to Fermentation",
+        "type": "Deep Dive",
+        "date": "Dec 15, 2025",
+        "description": "Unlock the funk. Fermentation creates complex flavors you can't get any other way. We start with a simple sauerkraut recipe.",
+        "image": "https://images.unsplash.com/photo-1630438997368-8e65893d7c07?auto=format&fit=crop&q=80&w=2000",
+        "content": "## Controlled Decay\n\nFermentation is the transformative action of microorganisms. \n\n### Sauerkraut 101\n\n**Ingredients**: Cabbage, Salt (2% by weight).\n\n**Process**:\n1. Shred cabbage.\n2. Massage with salt until liquid releases.\n3. Pack into a jar, submerged under liquid.\n4. Wait 1-2 weeks.\n\nThe lactobacillus bacteria naturally present on the cabbage digest sugars and produce lactic acid, preserving the cabbage and creating that signature tang."
+    }
+]

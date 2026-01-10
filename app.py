@@ -390,17 +390,51 @@ def recipe_image_generation_save():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
-@app.route('/', methods=['GET', 'POST'])
-def index():
+@app.route('/new-recipe', methods=['GET', 'POST'])
+def new_recipe():
     if request.method == 'POST':
         query = request.form.get('query')
         chef_id = request.form.get('chef_id', 'gourmet')
         if query:
             return redirect(url_for('generate', query=query, chef_id=chef_id))
     
-    # Get recent recipes
+    # Get recent recipes (Still passed but template might not use them if removed)
     recent_recipes = db.session.execute(db.select(Recipe).order_by(Recipe.id.desc()).limit(10)).scalars().all()
     return render_template('index.html', recipes=recent_recipes, chefs=chefs_data)
+
+@app.route('/')
+def index():
+    # Load Recent Recipes
+    recent_recipes = db.session.execute(db.select(Recipe).order_by(Recipe.id.desc()).limit(8)).scalars().all()
+    
+    # Load Resources
+    resources = load_resources()
+    
+    return render_template('landing.html', recipes=recent_recipes, resources=resources)
+
+def load_resources():
+    try:
+        data_dir = os.path.join(app.root_path, 'data')
+        with open(os.path.join(data_dir, 'resources.json'), 'r') as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"Error loading resources: {e}")
+        return []
+
+@app.route('/become-a-chef')
+def resources_list():
+    resources = load_resources()
+    return render_template('resources.html', resources=resources)
+
+@app.route('/become-a-chef/<resource_id>')
+def resource_detail(resource_id):
+    resources = load_resources()
+    resource = next((r for r in resources if r['id'] == resource_id), None)
+    if not resource:
+        flash("Resource not found", "error")
+        return redirect(url_for('resources_list'))
+        
+    return render_template('resource_detail.html', resource=resource)
 
 import json
 

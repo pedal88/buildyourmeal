@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% import "components/typography.html" as type %}
+{% import "components/cards.html" as card %}
+
+{% block title %}Resources - The AI Kitchen{% endblock %}
+
+{% block content %}
+<div class="bg-white py-12">
+    <div class="mx-auto max-w-7xl px-6 lg:px-8">
+        {{ type.page_header('Culinary Resources', 'Deep dives, techniques, and articles to level up your cooking.') }}
+
+        <div class="grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 xl:gap-x-8 mt-12">
+            {% for resource in resources %}
+            {{ card.resource_preview_card(resource) }}
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
