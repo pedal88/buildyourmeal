@@ -165,26 +165,7 @@
     </div>
 </div>
 
-<!-- Recent Creations Grid -->
-<div class="bg-slate-50 py-24 border-t border-slate-200">
-    <div class="mx-auto max-w-7xl px-6 lg:px-8">
-        <div class="flex items-center justify-center mb-16">
-            {{ type.section_header('Recent Creations', 'Dishes you have generated recently.') }}
-        </div>
 
-        {% if recipes %}
-        <div class="grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 xl:gap-x-8">
-            {% for recipe in recipes %}
-            {{ card.recipe_preview_card(recipe, recipe.id) }}
-            {% endfor %}
-        </div>
-        {% else %}
-        <div class="text-center py-12">
-            <p class="text-slate-500 italic">No recipes yet. Start cooking above!</p>
-        </div>
-        {% endif %}
-    </div>
-</div>
 
 <!-- Load Alpine.js for Tabs -->
 <script src="//unpkg.com/alpinejs" defer></script>

@@ -37,7 +37,7 @@ def generate_visual_prompt(recipe_text: str, ingredients_list: str = None) -> st
     if ingredients_list:
         ingredients_context = f"\nStats: CRITICAL - The following ingredients MUST be visible: {ingredients_list}\n"
     
-    full_prompt = load_prompt('visual_description.jinja2',
+    full_prompt = load_prompt('recipe_image/visual_description.jinja2',
         system_prompt=config['system_prompt'],
         ingredients_context=ingredients_context,
         recipe_text=recipe_text
@@ -59,15 +59,8 @@ def generate_visual_prompt_from_image(image_bytes: bytes) -> str:
         
     config = load_photographer_config()
     
-    full_prompt = f"""
-    {config['system_prompt']}
-    
-    TASK: Analyze the provided food image. Write a highly detailed visual prompt that would allow an AI model to recreate this exact dish, lighting, styling, and composition.
-    Focus on:
-    1. The textures and ingredient visibility.
-    2. The lighting setup (direction, hardness, color).
-    3. The plating and background.
-    """
+    from utils.prompt_manager import load_prompt
+    full_prompt = load_prompt('recipe_image/image_analysis.jinja2', system_prompt=config['system_prompt'])
     
     # Create the image object for Gemini
     # For new genai SDK (v1.0+), we can pass PIL images or bytes directly in contents
@@ -243,7 +236,7 @@ def process_external_image(image_url: str) -> Image.Image:
         subject_description = response.text.strip()
         
         # 2. Render Prompt
-        cookbook_prompt = load_prompt('style_cookbook.jinja2', subject_description=subject_description)
+        cookbook_prompt = load_prompt('recipe_image/style_cookbook.jinja2', subject_description=subject_description)
         
         # 3. Generate
         return generate_actual_image(cookbook_prompt)

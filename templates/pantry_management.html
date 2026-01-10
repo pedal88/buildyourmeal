@@ -216,7 +216,10 @@
                                             class="name-text font-medium {{ 'text-slate-900 font-bold' if ing.is_basic_ingredient else 'text-slate-500 font-normal' }}">
                                             {{ ing.name|title }}
                                         </div>
-                                        <div class="text-[10px] text-slate-300 font-mono">#{{ ing.id }}</div>
+                                        <div class="text-[10px] text-slate-300 font-mono cursor-pointer hover:text-indigo-500 hover:underline"
+                                            onclick="openJsonModal('{{ ing.id }}')">
+                                            #{{ ing.id }} (view json)
+                                        </div>
                                     </div>
                                 </div>
                             </td>
@@ -322,6 +325,32 @@
                             class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50 sm:mt-0 sm:w-auto">
                             Cancel
                         </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- JSON VIEWER MODAL -->
+    <div id="jsonModal" class="fixed inset-0 z-50 hidden" role="dialog" aria-modal="true">
+        <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity" onclick="closeJsonModal()"></div>
+        <div class="fixed inset-0 z-10 overflow-y-auto">
+            <div class="flex min-h-full items-center justify-center p-4 text-center">
+                <div
+                    class="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:w-full sm:max-w-2xl">
+                    <div class="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="text-base font-semibold leading-6 text-slate-900" id="jsonModalTitle">Ingredient
+                                Data</h3>
+                            <button onclick="closeJsonModal()" class="text-slate-400 hover:text-slate-500">
+                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="bg-slate-900 rounded-lg p-4 overflow-auto max-h-[600px]">
+                            <pre id="jsonContent" class="text-xs text-green-400 font-mono"></pre>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -757,6 +786,38 @@
             console.error(e);
             alert("Error deleting: " + e);
         }
+    }
+
+    // --- JSON Viewer Logic ---
+    async function openJsonModal(id) {
+        const modal = document.getElementById('jsonModal');
+        const content = document.getElementById('jsonContent');
+        const title = document.getElementById('jsonModalTitle');
+
+        modal.classList.remove('hidden');
+        content.innerText = 'Loading...';
+
+        try {
+            const res = await fetch(`/api/ingredient/${id}`);
+            const data = await res.json();
+
+            if (data.success) {
+                title.innerText = `JSON Data: ${data.name}`;
+                // Clean up the object to show relevant fields
+                const displayData = { ...data };
+                delete displayData.success;
+
+                content.innerText = JSON.stringify(displayData, null, 2);
+            } else {
+                content.innerText = 'Error loading data: ' + data.error;
+            }
+        } catch (e) {
+            content.innerText = 'Network Error: ' + e;
+        }
+    }
+
+    function closeJsonModal() {
+        document.getElementById('jsonModal').classList.add('hidden');
     }
 </script>
 {% endblock %}

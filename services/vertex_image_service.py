@@ -44,7 +44,7 @@ class VertexImageGenerator:
             return f"A professional studio food photography shot of {ingredient_name}. {visual_details}"
             
         try:
-            template = self.jinja_env.get_template('ingredient_image.jinja2')
+            template = self.jinja_env.get_template('ingredient_image/ingredient_image.jinja2')
             return template.render(ingredient_name=ingredient_name, visual_details=visual_details)
         except Exception as e:
             print(f"Error rendering prompt: {e}")

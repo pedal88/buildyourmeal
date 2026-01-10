@@ -1,0 +1,5 @@
+{
+  "ingredient_image/image_analysis.jinja2": "This prompt takes an image of a dish as input, analyses it, and create a prompt based on this. The prompt is created with the purpose that it will generate a similar image",
+  "ingredient_text/ingredient_analysis.jinja2": "Instantly convert ingredient names (apple, avocado) into structured database records with full nutritional profiles",
+  "ingredient_image/ingredient_image.jinja2": ""
+}

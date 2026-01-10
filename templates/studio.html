@@ -368,7 +368,7 @@
         }
 
         try {
-            const response = await fetch('/studio/analyze', { method: 'POST', body: formData });
+            const response = await fetch('/admin/studio/analyze', { method: 'POST', body: formData });
             const data = await response.json();
 
             if (data.success) {
@@ -418,7 +418,7 @@
         }
 
         try {
-            const response = await fetch('/studio/generate', { method: 'POST', body: formData });
+            const response = await fetch('/admin/studio/generate', { method: 'POST', body: formData });
             const data = await response.json();
 
             if (data.success) {

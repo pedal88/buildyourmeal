@@ -584,7 +584,7 @@
         });
 
         try {
-            const res = await fetch('/chefs/save', {
+            const res = await fetch('/admin/chefs/save', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ chefs })

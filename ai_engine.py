@@ -202,7 +202,7 @@ def generate_recipe_ai(query: str, slim_context: list[dict] = None, chef_id: str
     try:
         from jinja2 import Environment, FileSystemLoader
         env = Environment(loader=FileSystemLoader(os.path.join(os.path.dirname(__file__), 'data', 'prompts')))
-        template = env.get_template('recipe_generation.jinja2')
+        template = env.get_template('recipe_text/recipe_generation.jinja2')
         prompt = template.render(
             chef_context=chef_context,
             query=query,
@@ -312,7 +312,7 @@ def analyze_ingredient_ai(prompt: str, valid_categories: dict) -> dict:
     # Load prompt from studio template
     from utils.prompt_manager import load_prompt
     
-    system_prompt = load_prompt('ingredient_analysis.jinja2', 
+    system_prompt = load_prompt('ingredient_text/ingredient_analysis.jinja2', 
         user_input=prompt,
         valid_categories_json=json.dumps(valid_categories['main_categories']),
         valid_subcategories_json=json.dumps(valid_categories['sub_categories'])

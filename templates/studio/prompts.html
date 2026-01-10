@@ -130,7 +130,7 @@
         listEl.innerHTML = '<div class="animate-pulse h-4 bg-slate-200 rounded w-3/4 mx-2 mt-2"></div>';
 
         try {
-            const res = await fetch('/studio/api/prompts');
+            const res = await fetch('/admin/prompts/api/prompts');
             const data = await res.json();
 
             listEl.innerHTML = '';
@@ -163,7 +163,7 @@
         document.getElementById('statusBadge').classList.add('hidden');
 
         try {
-            const res = await fetch(`/studio/api/prompts/${filename}`);
+            const res = await fetch(`/admin/prompts/api/prompts/${filename}`);
             const data = await res.json();
 
             if (data.success) {
@@ -232,7 +232,7 @@
         const content = editor.getValue();
 
         try {
-            const res = await fetch('/studio/api/prompts/save', {
+            const res = await fetch('/admin/prompts/api/prompts/save', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -280,7 +280,7 @@
         }
 
         try {
-            const res = await fetch('/studio/api/prompts/test', {
+            const res = await fetch('/admin/prompts/api/prompts/test', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

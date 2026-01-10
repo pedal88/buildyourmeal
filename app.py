@@ -14,12 +14,13 @@ from io import BytesIO
 import shutil
 import datetime
 from sqlalchemy import func
+from utils.prompt_manager import load_prompt
 
 app = Flask(__name__)
 
 # Register Blueprints
-from routes.studio_routes import studio_bp
-app.register_blueprint(studio_bp)
+from routes.studio_routes import prompts_bp
+app.register_blueprint(prompts_bp)
 
 
 @app.template_filter('parse_chef_dna')
@@ -88,7 +89,7 @@ db.init_app(app)
 
 # PHOTOGRAPHER ROUTES
 
-@app.route('/studio', methods=['GET', 'POST'])
+@app.route('/admin/studio', methods=['GET', 'POST'])
 def studio_view():
     prompt = None
     recipe_text = ""
@@ -130,7 +131,7 @@ def studio_view():
                          recipe_id=recipe_id,
                          ingredients_list=ingredients_list)
 
-@app.route('/studio/snap', methods=['POST'])
+@app.route('/admin/studio/snap', methods=['POST'])
 def studio_snap():
     prompt = request.form.get('visual_prompt')
     recipe_text = request.form.get('recipe_text') # Retrieve context
@@ -170,7 +171,7 @@ def studio_snap():
                              recipe_id=recipe_id,
                              ingredients_list=ingredients_list)
 
-@app.route('/studio/save', methods=['POST'])
+@app.route('/admin/studio/save', methods=['POST'])
 def save_recipe_image():
     filename = request.form.get('filename')
     recipe_id = request.form.get('recipe_id')
@@ -206,7 +207,7 @@ def save_recipe_image():
         return redirect(url_for('index')) 
 
 
-@app.route('/studio/analyze', methods=['POST'])
+@app.route('/admin/studio/analyze', methods=['POST'])
 def studio_analyze():
     try:
         # A1: Text Input -> Generate Prompt
@@ -230,7 +231,7 @@ def studio_analyze():
         config = load_photographer_config()
         # Create a specific "Enhancer" prompt or just use the system prompt
         # User requested: "Cookbook Style" with Template
-        prompt_b3 = "A professional close-up food photography shot of [Ingredient Name]. Studio lighting, soft shadows, sharp focus, isolated on a pure white background. 8k resolution, highly detailed texture, appetizing."
+        prompt_b3 = load_prompt('recipe_image/style_remix.jinja2', ingredient_name='[Ingredient Name]')
 
         return jsonify({
             'success': True,
@@ -243,7 +244,7 @@ def studio_analyze():
         print(f"Analyze Error: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@app.route('/studio/generate', methods=['POST'])
+@app.route('/admin/studio/generate', methods=['POST'])
 def studio_generate():
     try:
         # B1: Text-to-Image
@@ -411,7 +412,7 @@ def load_json_option(filename, key):
     except:
         return []
 
-@app.route('/chefs')
+@app.route('/admin/chefs')
 def chefs_list():
     diets_data = load_json_option('diets_tag.json', 'diets')
     
@@ -429,7 +430,7 @@ def chefs_list():
     
     return render_template('chefs.html', chefs=chefs_data, diets_list=diets_data, grouped_methods=grouped_methods)
 
-@app.route('/chefs/save', methods=['POST'])
+@app.route('/admin/chefs/save', methods=['POST'])
 def save_chefs_json():
     try:
         data = request.get_json()
