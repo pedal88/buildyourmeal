@@ -87,12 +87,12 @@ Expects a RecipeIngredient object (ri) which has .ingredient relation and .amoun
 {% endmacro %}
 
 {% macro resource_preview_card(resource) %}
-<a href="/become-a-chef/{{ resource.id }}"
+<a href="/become-a-chef/{{ resource.slug }}"
     class="group block h-full bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-blue-200 transition-all duration-300 overflow-hidden flex flex-col">
     <!-- Image / Gradient Placeholder -->
     <div class="h-48 bg-slate-100 relative overflow-hidden">
-        {% if resource.image %}
-        <img src="{{ resource.image }}" alt="{{ resource.title }}"
+        {% if resource.image_filename %}
+        <img src="{{ resource.image_filename }}" alt="{{ resource.title }}"
             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
         {% else %}
         <div class="absolute inset-0 bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center">
@@ -104,9 +104,9 @@ Expects a RecipeIngredient object (ri) which has .ingredient relation and .amoun
     <div class="p-5 flex flex-col flex-grow">
         <!-- Meta -->
         <div class="flex items-center gap-2 mb-3">
-            <span class="text-xs font-bold text-blue-600 uppercase tracking-wide">{{ resource.type }}</span>
+            <span class="text-xs font-bold text-blue-600 uppercase tracking-wide">Article</span>
             <span class="text-slate-300">•</span>
-            <span class="text-xs text-slate-500">{{ resource.date }}</span>
+            <span class="text-xs text-slate-500">{{ resource.meta.read_time }} min read</span>
         </div>
 
         <!-- Title -->
@@ -116,7 +116,7 @@ Expects a RecipeIngredient object (ri) which has .ingredient relation and .amoun
         </h3>
 
         <p class="text-sm text-slate-600 line-clamp-3 mb-4">
-            {{ resource.description }}
+            {{ resource.summary }}
         </p>
 
         <!-- Read More Link (Visual) -->

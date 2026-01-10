@@ -123,6 +123,13 @@
                             <span
                                 class="text-[10px] uppercase font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded hidden rec-badge">Recommended</span>
                         </button>
+
+                        <button onclick="setRunner('article_generator')" id="btn_article_generator"
+                            class="w-full text-left px-3 py-2 text-xs border rounded transition-all flex justify-between items-center group runner-btn border-slate-200 hover:border-indigo-300">
+                            <span>Article Generator (CMS)</span>
+                            <span
+                                class="text-[10px] uppercase font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded hidden rec-badge">Recommended</span>
+                        </button>
                     </div>
                 </div>
 
@@ -146,6 +153,11 @@
                         id="tabOutput">Output</button>
                     <button class="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-700"
                         onclick="alert('Feature coming soon: View the raw prompt sent to API')">Rendered Prompt</button>
+                    <button
+                        class="ml-auto px-4 py-1 text-xs bg-green-600 text-white rounded hidden hover:bg-green-700 m-1"
+                        id="btnSaveResource" onclick="saveResourceFromPreview()">
+                        Save to Library
+                    </button>
                 </div>
                 <div class="flex-grow overflow-auto p-4 bg-slate-900 text-green-400 font-mono text-xs whitespace-pre-wrap"
                     id="testOutput">
@@ -229,6 +241,8 @@
             rec = 'vertex_image';
         } else if (filename.includes('recipe_image/')) {
             rec = 'gemini_text'; // visual_description, image_analysis
+        } else if (filename.includes('resource_writer')) {
+            rec = 'article_generator';
         }
 
         // Highlight recommended
@@ -458,14 +472,38 @@
             const data = await res.json();
 
             if (data.success) {
-                if (typeof data.result === 'string' && data.result.startsWith('<img') && runner === 'vertex_image') {
+                // Article Generator Handling
+                if (runner === 'article_generator') {
+                    lastArticleResult = data.result;
+                    // Render Article Preview
+                    const article = data.result;
+                    const imgHtml = article.temp_image_url ? `<div class="mb-4"><img src="${article.temp_image_url}" class="max-w-md rounded shadow mb-2"><div class="text-[10px] text-slate-400">Temp: ${article.temp_image_url}</div></div>` : '';
+
+                    outputDiv.innerHTML = `
+                        <div class="p-4 bg-white rounded text-slate-800 border border-slate-200">
+                             <div class="flex justify-between items-start">
+                                 <h3 class="font-bold text-lg mb-2">${article.title}</h3>
+                                 <span class="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded font-mono">${article.slug}</span>
+                             </div>
+                             ${imgHtml}
+                             <p class="text-sm text-slate-600 italic mb-4">${article.summary}</p>
+                             <div class="text-xs font-mono bg-slate-100 p-2 rounded max-h-40 overflow-auto whitespace-pre-wrap">${article.content_markdown?.substring(0, 300)}...</div>
+                        </div>
+                     `;
+                    // Show Save Button
+                    document.getElementById('btnSaveResource').classList.remove('hidden');
+                }
+                else if (typeof data.result === 'string' && data.result.startsWith('<img') && runner === 'vertex_image') {
                     outputDiv.innerHTML = data.result; // HTML (Image)
+                    document.getElementById('btnSaveResource').classList.add('hidden');
                 } else {
                     outputDiv.innerText = typeof data.result === 'object' ? JSON.stringify(data.result, null, 2) : data.result;
+                    document.getElementById('btnSaveResource').classList.add('hidden');
                 }
             } else {
                 outputDiv.innerText = `Error: ${data.error}`;
                 outputDiv.classList.add('text-red-400');
+                document.getElementById('btnSaveResource').classList.add('hidden');
             }
         } catch (e) {
             outputDiv.innerText = `Network Error: ${e}`;
@@ -473,6 +511,52 @@
             document.getElementById('btnRun').disabled = false;
         }
     }
+
+    // CMS Save Logic
+    let lastArticleResult = null;
+
+    async function saveResourceFromPreview() {
+        if (!lastArticleResult) return;
+
+        const btn = document.getElementById('btnSaveResource');
+        btn.innerText = "Saving...";
+        btn.disabled = true;
+
+        try {
+            const res = await fetch('/admin/prompts/api/resources/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(lastArticleResult)
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                btn.innerText = "Saved!";
+                btn.classList.replace('bg-green-600', 'bg-slate-500');
+                setTimeout(() => {
+                    btn.classList.add('hidden');
+                    btn.innerText = "Save to Library";
+                    btn.disabled = false;
+                    btn.classList.replace('bg-slate-500', 'bg-green-600');
+                }, 3000);
+            } else {
+                alert("Error saving: " + data.error);
+                btn.innerText = "Save Failed";
+                btn.disabled = false;
+            }
+        } catch (e) {
+            alert("Error: " + e);
+            btn.innerText = "Save";
+            btn.disabled = false;
+        }
+    }
+
+    // Updated Output Renderer in runTest...
+    // We need to hook into the runTest function. 
+    // Since I can't easily edit the middle of runTest with simple replacement without replacing the whole block,
+    // I will append a visual handling logic to the success block in runTest via a wider replacement or overwrite.
+    // Actually, I'll just overwrite the relevant part of runTest in the implementation below.
+
 
     // Ctrl+S to Save
     document.addEventListener('keydown', e => {

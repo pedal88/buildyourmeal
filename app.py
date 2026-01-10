@@ -426,15 +426,24 @@ def resources_list():
     resources = load_resources()
     return render_template('resources.html', resources=resources)
 
-@app.route('/become-a-chef/<resource_id>')
-def resource_detail(resource_id):
+@app.route('/become-a-chef/<slug>')
+def resource_detail(slug):
     resources = load_resources()
-    resource = next((r for r in resources if r['id'] == resource_id), None)
+    resource = next((r for r in resources if r.get('slug') == slug or r.get('id') == slug), None)
+    
     if not resource:
-        flash("Resource not found", "error")
+        flash("Article not found", "error")
         return redirect(url_for('resources_list'))
+    
+    # Resolve Related Articles
+    related_resources = []
+    if 'related_slugs' in resource:
+        for r_slug in resource['related_slugs']:
+             rel = next((r for r in resources if r.get('slug') == r_slug), None)
+             if rel:
+                 related_resources.append(rel)
         
-    return render_template('resource_detail.html', resource=resource)
+    return render_template('resource_detail.html', resource=resource, related_resources=related_resources)
 
 import json
 
@@ -1267,14 +1276,16 @@ def generate_web_recipe():
                     db.session.add(RecipeMealType(recipe_id=new_recipe.id, meal_type=mt))
             
             # Save Instructions
-            for phase_group in recipe_data.instructions:
-                instr = Instruction(
-                    recipe_id=new_recipe.id,
-                    step_number=phase_group.step_number,
-                    text=phase_group.text,
-                    phase=phase_group.phase
-                )
-                db.session.add(instr)
+            for component in recipe_data.components:
+                for step in component.steps:
+                    instr = Instruction(
+                        recipe_id=new_recipe.id,
+                        step_number=step.step_number,
+                        text=step.text,
+                        phase=step.phase,
+                        component=component.name
+                    )
+                    db.session.add(instr)
 
             # Save Ingredients
             for group in recipe_data.ingredient_groups:
@@ -1563,14 +1574,16 @@ def generate_from_video():
                     db.session.add(recipe_ing)
             
             # Create Instructions
-            for instr in recipe_data.instructions:
-                new_instr = Instruction(
-                    recipe_id=new_recipe.id,
-                    phase=instr.phase,
-                    step_number=instr.step_number,
-                    text=instr.text
-                )
-                db.session.add(new_instr)
+            for component in recipe_data.components:
+                for step in component.steps:
+                    new_instr = Instruction(
+                        recipe_id=new_recipe.id,
+                        phase=step.phase,
+                        step_number=step.step_number,
+                        text=step.text,
+                        component=component.name
+                    )
+                    db.session.add(new_instr)
 
             db.session.commit()
             

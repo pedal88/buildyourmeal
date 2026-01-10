@@ -2,6 +2,7 @@ import os
 import re
 import json
 import shutil
+import uuid
 from datetime import datetime
 from flask import Blueprint, jsonify, request, current_app
 from jinja2 import Environment, FileSystemLoader
@@ -203,6 +204,49 @@ def test_prompt():
             else:
                 result = f"Error: {res.get('error')}"
                 
+
+
+        elif runner == 'article_generator':
+            # 1. Load Library Context (Simplified)
+            resources_path = os.path.join(os.getcwd(), 'data', 'resources.json')
+            existing_slugs = []
+            try:
+                with open(resources_path, 'r') as f:
+                    data = json.load(f)
+                    existing_slugs = [{'title': item['title'], 'slug': item['slug']} for item in data]
+            except:
+                pass # First run
+
+            # 2. Render Prompt with Context
+            variables['existing_library_context'] = json.dumps(existing_slugs)
+            rendered_prompt = template.render(**variables)
+
+            # 3. Generate Text (Article JSON)
+            print(f"DEBUG: Generating Article...")
+            model = 'gemini-2.0-flash-exp'
+            response = ai_engine.client.models.generate_content(
+                model=model,
+                contents=rendered_prompt,
+                config={'response_mime_type': 'application/json'}
+            )
+            article_json = json.loads(response.text)
+
+            # 4. Generate Image (Vertex)
+            image_prompt = article_json.get('image_prompt', 'A delicious food image')
+            print(f"DEBUG: Generating Article Image for prompt: {image_prompt}")
+            
+            gen = VertexImageGenerator(root_path=os.getcwd())
+            # Use 'studio' context or similar for consistent style if needed
+            res = gen.generate_candidate(article_json.get('slug', 'temp'), image_prompt)
+            
+            if res.get('success'):
+                # Attach temp image url to the result so frontend can see/save it
+                article_json['temp_image_url'] = res['image_url']
+                # Also local path for saving later
+                article_json['temp_image_path'] = res['local_path']
+            
+            result = article_json
+
         else:
             return jsonify({'success': False, 'error': f'Unknown runner: {runner}'}), 400
 
@@ -211,6 +255,69 @@ def test_prompt():
             'rendered_prompt': rendered_prompt,
             'result': result
         })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@prompts_bp.route('/api/resources/save', methods=['POST'])
+def save_resource():
+    try:
+        article_data = request.get_json()
+        if not article_data:
+            return jsonify({'success': False, 'error': 'No data provided'}), 400
+
+        # 1. Handle Image Move (Temp -> Static/Resources)
+        temp_path = article_data.get('temp_image_path')
+        final_image_filename = None
+        
+        if temp_path and os.path.exists(temp_path):
+            # Create permanent dir if needed
+            resources_img_dir = os.path.join(os.getcwd(), 'static', 'resources')
+            os.makedirs(resources_img_dir, exist_ok=True)
+            
+            # Generate filename
+            ext = os.path.splitext(temp_path)[1]
+            new_filename = f"{article_data.get('slug', 'resource')}_{uuid.uuid4().hex[:6]}{ext}"
+            final_path = os.path.join(resources_img_dir, new_filename)
+            
+            shutil.move(temp_path, final_path)
+            # Store RELATIVE URL or Filename for frontend
+            # The app seems to use full URLs in sample data, but local files should probably be /static/...
+            # Let's use the /static path convention
+            final_image_filename = f"/static/resources/{new_filename}" 
+        else:
+            # Keep existing or fallback
+            final_image_filename = article_data.get('image_filename')
+
+        # 2. Prepare Resource Object
+        new_resource = {
+            "id": article_data.get('slug'), # Use slug as ID for simplicity or generate UUID
+            "slug": article_data.get('slug'),
+            "title": article_data.get('title'),
+            "summary": article_data.get('summary'),
+            "content_markdown": article_data.get('content_markdown'),
+            "tags": article_data.get('tags', []),
+            "image_filename": final_image_filename,
+            "related_slugs": article_data.get('related_slugs', []),
+            "meta": article_data.get('meta', {})
+        }
+
+        # 3. Save to JSON Store
+        resources_path = os.path.join(os.getcwd(), 'data', 'resources.json')
+        current_resources = []
+        if os.path.exists(resources_path):
+            with open(resources_path, 'r') as f:
+                current_resources = json.load(f)
+        
+        # Append
+        current_resources.append(new_resource)
+        
+        with open(resources_path, 'w') as f:
+            json.dump(current_resources, f, indent=4)
+
+        return jsonify({'success': True})
 
     except Exception as e:
         import traceback
