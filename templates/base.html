@@ -141,6 +141,7 @@
                     <a href="{{ url_for('logout') }}" class="hover:text-orange-600 transition-colors">Logout</a>
                 </div>
                 {% else %}
+                <a href="{{ url_for('register') }}" class="hover:text-orange-600 transition-colors ml-4">Register</a>
                 <a href="{{ url_for('login') }}"
                     class="hover:text-orange-600 transition-colors ml-4 font-semibold text-orange-600">Admin Login</a>
                 {% endif %}

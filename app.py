@@ -142,6 +142,41 @@ def logout():
     flash('You have been logged out.', 'info')
     return redirect(url_for('index'))
 
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if current_user.is_authenticated:
+        return redirect(url_for('studio_view'))
+    
+    if request.method == 'POST':
+        email = request.form.get('email')
+        password = request.form.get('password')
+        confirm_password = request.form.get('confirm_password')
+        
+        if not email or not password or not confirm_password:
+             flash('Please fill in all fields', 'error')
+             return render_template('register.html')
+
+        if password != confirm_password:
+            flash('Passwords do not match', 'error')
+            return render_template('register.html')
+            
+        # Check if user exists
+        user_exists = db.session.execute(db.select(User).where(User.email == email)).scalar()
+        if user_exists:
+            flash('Email already registered', 'error')
+            return render_template('register.html')
+            
+        # Create user
+        new_user = User(email=email)
+        new_user.set_password(password)
+        db.session.add(new_user)
+        db.session.commit()
+        
+        flash('Registration successful! Please login.', 'success')
+        return redirect(url_for('login'))
+        
+    return render_template('register.html')
+
 # PHOTOGRAPHER ROUTES
 
 @app.route('/admin/studio', methods=['GET', 'POST'])

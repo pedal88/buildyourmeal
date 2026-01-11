@@ -166,10 +166,16 @@
                                 <div class="flex items-center gap-3">
                                     <div class="relative group/img">
                                         {% if ing.image_url %}
+                                        {% if ing.image_url.startswith('http') %}
+                                        <img src="{{ ing.image_url }}" alt="{{ ing.name }}" id="img-row-{{ ing.id }}"
+                                            class="w-10 h-10 rounded-md object-cover bg-slate-100 shadow-sm border border-slate-100"
+                                            loading="lazy">
+                                        {% else %}
                                         <img src="{{ url_for('static', filename=ing.image_url) }}" alt="{{ ing.name }}"
                                             id="img-row-{{ ing.id }}"
                                             class="w-10 h-10 rounded-md object-cover bg-slate-100 shadow-sm border border-slate-100"
                                             loading="lazy">
+                                        {% endif %}
                                         {% else %}
                                         <div id="img-row-{{ ing.id }}"
                                             class="w-10 h-10 rounded-md bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-300">
