@@ -8,3 +8,10 @@ requests
 google-cloud-aiplatform>=1.38.0
 google-cloud-texttospeech
 flask-login
+google-cloud-storage>=2.14.0
+gunicorn
+pg8000
+cloud-sql-python-connector[pg8000]
+flask-sqlalchemy
+Pillow
+yt-dlp

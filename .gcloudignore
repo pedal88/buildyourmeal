@@ -1,0 +1,14 @@
+.git
+.gitignore
+venv/
+__pycache__/
+*.pyc
+.DS_Store
+.env
+google-cloud-sdk/
+google-cloud-cli-darwin-arm.tar.gz
+static/pantry/
+static/recipes/
+static/temp/
+temp_ingredients_for_Mapping/
+temp_video/

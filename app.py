@@ -1,7 +1,15 @@
 import os
+from dotenv import load_dotenv
+
+# Load Environment Variables Forcefully BEFORE other imports might need them
+load_dotenv()
+print(f"--- CONFIG DEBUG: STORAGE_BACKEND={os.getenv('STORAGE_BACKEND')} ---")
+print(f"--- CONFIG DEBUG: DB_BACKEND={os.getenv('DB_BACKEND', 'local')} ---")
+
 import uuid
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, abort
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
+from database.db_connector import configure_database
 from database.models import db, Ingredient, Recipe, Instruction, RecipeIngredient, RecipeMealType, User
 from utils.decorators import admin_required
 from sqlalchemy import or_
@@ -10,6 +18,7 @@ from ai_engine import generate_recipe_ai, get_pantry_id, chefs_data, generate_re
 from services.photographer_service import generate_visual_prompt, generate_actual_image, generate_visual_prompt_from_image, load_photographer_config, generate_image_variation, process_external_image
 from services.vertex_image_service import VertexImageGenerator
 from services.web_scraper_service import WebScraper
+from services.storage_service import get_storage_provider
 from utils.image_helpers import generate_ingredient_placeholder
 import base64
 from io import BytesIO
@@ -66,7 +75,8 @@ def parse_chef_dna(prompt):
                 sections[current_key] = [line]
     return sections
 app.config['SECRET_KEY'] = 'dev-key-secret'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///kitchen.db'
+# Database Configuration (Local vs Cloud SQL)
+configure_database(app)
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 @app.template_filter('get_protein_category')
@@ -88,6 +98,14 @@ def utility_processor():
     return dict(update_query_params=update_query_params)
 
 db.init_app(app)
+
+# Initialize Storage Provider
+storage_provider = get_storage_provider(app.root_path)
+print(f"--- STORAGE SYSTEM ACTIVE: {storage_provider.__class__.__name__} ---")
+
+# Inject storage provider into blueprint context
+# Note: Blueprints are registered earlier, but we can attach attributes to the object
+prompts_bp.storage_provider = storage_provider
 
 # Initialize Flask-Login
 login_manager = LoginManager()
@@ -187,19 +205,36 @@ def studio_snap():
         # Generate the Image
         img = generate_actual_image(prompt)
         
-        # Save to Temp
+        # Save to Temp via Storage Provider
         filename = f"temp_{uuid.uuid4().hex}.png"
-        temp_path = os.path.join(app.root_path, 'static', 'temp', filename)
-        img.save(temp_path, format="PNG")
         
-        # Render template with the image filename AND context
+        # Convert PIL to Bytes
+        img_byte_arr = BytesIO()
+        img.save(img_byte_arr, format='PNG')
+        img_bytes = img_byte_arr.getvalue()
+        
+        public_url = storage_provider.save(img_bytes, filename, "temp")
+        
+        # Render template with the image filename/URL AND context
+        # Note: 'temp_image' variable now expects just the filename for some logic 
+        # OR the URL? The template uses `url_for('static', filename='temp/'+temp_image)` usually.
+        # If we return a URL from GCS, we can't wrap it in `url_for('static')`.
+        # We need to pass the FULL URL.
+        # But let's check studio.html usage later. unique filename is safer for now if local.
+        # If local, storage.save returns "/static/temp/filename.png"
+        # If GCS, it returns "https://..."
+        
+        # Let's pass the full URL to the template as 'temp_image_url' and update template?
+        # OR keep 'temp_image' as filename, and 'temp_image_full_url' as the public url.
+        
         return render_template('studio.html', 
                              config=config, 
                              prompt=prompt, 
                              recipe_text=recipe_text,
                              recipe_id=recipe_id,
                              ingredients_list=ingredients_list,
-                             temp_image=filename)
+                             temp_image=filename,
+                             temp_image_url=public_url) # New variable
                              
     except Exception as e:
         flash(f"Error generating image: {str(e)}", "error")
@@ -225,13 +260,11 @@ def save_recipe_image():
         
     try:
         # Move file from temp to recipes
-        src = os.path.join(app.root_path, 'static', 'temp', filename)
-        
-        # Create cleaner permanent filename
+        # Use simple storage abstraction
         new_filename = f"recipe_{recipe_id}_{uuid.uuid4().hex[:8]}.png"
-        dst = os.path.join(app.root_path, 'static', 'recipes', new_filename)
         
-        shutil.move(src, dst)
+        # Move: Temp -> Recipes
+        storage_provider.move(filename, "temp", new_filename, "recipes")
         
         # Update DB
         recipe = db.session.get(Recipe, int(recipe_id))
@@ -300,8 +333,11 @@ def studio_generate():
         if prompt_b1:
             img = generate_actual_image(prompt_b1)[0]
             filename = f"studio_a_{uuid.uuid4().hex}.png"
-            img.save(os.path.join(app.root_path, 'static', 'temp', filename))
-            img_c1_url = url_for('static', filename=f'temp/{filename}')
+            
+            # Save via Storage
+            img_byte_arr = BytesIO()
+            img.save(img_byte_arr, format='PNG')
+            img_c1_url = storage_provider.save(img_byte_arr.getvalue(), filename, "temp")
 
         # B2: Image-to-Prompt-to-Image
         prompt_b2 = request.form.get('prompt_b2')
@@ -309,8 +345,11 @@ def studio_generate():
         if prompt_b2:
             img = generate_actual_image(prompt_b2)[0]
             filename = f"studio_b_{uuid.uuid4().hex}.png"
-            img.save(os.path.join(app.root_path, 'static', 'temp', filename))
-            img_c2_url = url_for('static', filename=f'temp/{filename}')
+            
+            # Save via Storage
+            img_byte_arr = BytesIO()
+            img.save(img_byte_arr, format='PNG')
+            img_c2_url = storage_provider.save(img_byte_arr.getvalue(), filename, "temp")
             
         # B3: Mix (Image + Fixed Prompt)
         prompt_b3 = request.form.get('prompt_b3')
@@ -326,8 +365,11 @@ def studio_generate():
             # Variation Generation
             img = generate_image_variation(image_bytes, prompt_b3)
             filename = f"studio_c_{uuid.uuid4().hex}.png"
-            img.save(os.path.join(app.root_path, 'static', 'temp', filename))
-            img_c3_url = url_for('static', filename=f'temp/{filename}')
+            
+            # Save via Storage
+            img_byte_arr = BytesIO()
+            img.save(img_byte_arr, format='PNG')
+            img_c3_url = storage_provider.save(img_byte_arr.getvalue(), filename, "temp")
 
         return jsonify({
             'success': True,
@@ -390,16 +432,13 @@ def recipe_image_generation_create():
             return jsonify({'success': False, 'error': 'Prompt required'})
             
         # Generate Image
-        img = generate_actual_image(prompt)[0]
-        
         # Save to Temp
         filename = f"temp_{uuid.uuid4().hex}.png"
-        temp_path = os.path.join(app.root_path, 'static', 'temp', filename)
         
-        # Ensure temp dir exists
-        os.makedirs(os.path.dirname(temp_path), exist_ok=True)
-        
-        img.save(temp_path, format="PNG")
+        # Save via Storage
+        img_byte_arr = BytesIO()
+        img.save(img_byte_arr, format='PNG')
+        storage_provider.save(img_byte_arr.getvalue(), filename, "temp")
         
         return jsonify({'success': True, 'filename': filename})
         

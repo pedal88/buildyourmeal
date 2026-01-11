@@ -3,8 +3,9 @@ import io
 from google.cloud import texttospeech
 
 class PodcastGenerator:
-    def __init__(self):
+    def __init__(self, storage_provider=None):
         """Initializes the TextToSpeech client."""
+        self.storage = storage_provider
         # This relies on GOOGLE_APPLICATION_CREDENTIALS being set in env
         # or gcloud authed in local environment.
         try:
@@ -74,3 +75,15 @@ class PodcastGenerator:
                 continue
 
         return combined_audio.getvalue()
+        return combined_audio.getvalue()
+
+    def generate_and_save(self, script_json: list, filename: str, folder: str = "podcasts") -> str:
+        """
+        Generates audio and saves it directly to storage.
+        Returns the public URL.
+        """
+        audio_bytes = self.generate_audio(script_json)
+        if self.storage:
+            return self.storage.save(audio_bytes, filename, folder)
+        else:
+             raise Exception("Storage Provider not initialized in PodcastGenerator")

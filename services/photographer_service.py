@@ -18,6 +18,7 @@ client = None
 if GOOGLE_API_KEY:
     client = genai.Client(api_key=GOOGLE_API_KEY)
 
+
 def generate_visual_prompt(recipe_text: str, ingredients_list: str = None) -> str:
     """
     Uses Gemini (Text) to act as the Food Stylist and write the detailed image prompt.

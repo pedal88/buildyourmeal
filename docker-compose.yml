@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - FLASK_DEBUG=1
+      - STORAGE_BACKEND=local
+      - PYTHONUNBUFFERED=1
+      # Note: For GCS testing locally, you would need to mount your creds
+      # and set GOOGLE_APPLICATION_CREDENTIALS
+    volumes:
+      # Mount the current directory to /app for live reloading during dev
+      # Note: This overrides the 'COPY . .' in Dockerfile effectively for the code
+      - .:/app
+      # Exclude the venv from the volume mount so it uses the container's installed packages
+      - /app/venv

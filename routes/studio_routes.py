@@ -208,7 +208,9 @@ def test_prompt():
             # Use a dummy ingredient name for the file if not provided
             ing_name = variables.get('ingredient_name', 'test_ingredient')
             
-            gen = VertexImageGenerator(root_path=os.getcwd())
+            # Use injected storage provider
+            storage_provider = prompts_bp.storage_provider
+            gen = VertexImageGenerator(storage_provider=storage_provider, root_path=os.getcwd())
             
             # We pass the rendered prompt directly
             # Note: generate_candidate wants (ingredient_name, prompt)
@@ -254,18 +256,18 @@ def test_prompt():
             image_prompt = article_json.get('image_prompt', 'A delicious food image')
             print(f"DEBUG: Generating Article Image for prompt: {image_prompt}")
             
-            gen = VertexImageGenerator(root_path=os.getcwd())
+            storage_provider = prompts_bp.storage_provider
+            gen = VertexImageGenerator(storage_provider=storage_provider, root_path=os.getcwd())
+            
             # Use 'studio' context or similar for consistent style if needed
             res = gen.generate_candidate(article_json.get('slug', 'temp'), image_prompt)
             
             if res.get('success'):
                 # Attach temp image url to the result so frontend can see/save it
                 article_json['temp_image_url'] = res['image_url']
-                # Also local path for saving later
-                article_json['temp_image_path'] = res['local_path']
+                # For Phase 2, remove local_path dependency if possible or map appropriately
+                article_json['temp_image_path'] = res.get('local_path', res['image_url'])
             
-            result = article_json
-
             result = article_json
 
         elif runner == 'podcast_ingredient':
@@ -288,24 +290,28 @@ def test_prompt():
                 
             # 2. Synthesize Audio
             print("DEBUG: Synthesizing Audio...")
-            gen = PodcastGenerator()
+            storage_provider = prompts_bp.storage_provider
+            gen = PodcastGenerator(storage_provider=storage_provider)
+            
             if gen.client:
-                audio_bytes = gen.generate_audio(script_json)
+                slug = "test_podcast"
+                filename = f"{slug}_{uuid.uuid4().hex[:6]}.mp3"
                 
-                # 3. Save Temp File
-                temp_dir = os.path.join(os.getcwd(), 'static', 'temp')
-                os.makedirs(temp_dir, exist_ok=True)
-                temp_filename = f"podcast_test_{uuid.uuid4().hex[:6]}.mp3"
-                temp_path = os.path.join(temp_dir, temp_filename)
-                
-                with open(temp_path, 'wb') as f:
-                    f.write(audio_bytes)
+                try:
+                    # Save via Storage Service (generates directly to storage)
+                    # Use a temp folder or just podcasts/temp?
+                    public_url = gen.generate_and_save(script_json, filename, "podcasts/temp")
                     
-                result = {
-                    "audio_url": f"/static/temp/{temp_filename}",
-                    "temp_path": temp_path,
-                    "script": script_json
-                }
+                    result = {
+                        "audio_url": public_url,
+                        "temp_path": public_url, # Identifier for later saving/moving
+                        "script": script_json
+                    }
+                except Exception as e:
+                     result = {
+                        "error": str(e),
+                        "script": script_json
+                    }
             else:
                 result = {
                     "error": "TTS Client not available (check logs/creds).",
@@ -339,24 +345,55 @@ def save_resource():
         temp_path = article_data.get('temp_image_path')
         final_image_filename = None
         
-        if temp_path and os.path.exists(temp_path):
-            # Create permanent dir if needed
-            resources_img_dir = os.path.join(os.getcwd(), 'static', 'resources')
-            os.makedirs(resources_img_dir, exist_ok=True)
+        storage_provider = prompts_bp.storage_provider
+        
+        if temp_path:
+            # Generate new filename
+            ext = ".png" # Assume png from Vertex service
+            if temp_path.endswith('.jpg'): ext = ".jpg"
             
-            # Generate filename
-            ext = os.path.splitext(temp_path)[1]
             new_filename = f"{article_data.get('slug', 'resource')}_{uuid.uuid4().hex[:6]}{ext}"
-            final_path = os.path.join(resources_img_dir, new_filename)
             
-            shutil.move(temp_path, final_path)
-            # Store RELATIVE URL or Filename for frontend
-            # The app seems to use full URLs in sample data, but local files should probably be /static/...
-            # Let's use the /static path convention
-            final_image_filename = f"/static/resources/{new_filename}" 
-        else:
-            # Keep existing or fallback
-            final_image_filename = article_data.get('image_filename')
+            # USE COPY from storage provider
+            # Note: "temp_path" here is actually the URL from previous step in our new flow
+            # If it's local URL: /static/pantry/candidates/foo.png
+            # If it's GCS URL: https://storage.../pantry/candidates/foo.png
+            
+            # The StorageService.copy expects a SOURCE PATH.
+            # Local: full path. GCS: ?
+            
+            # HACK: For consistency in Phase 2, we assume `temp_path` allows us to find the source.
+            # If we are Local, we can resolve it.
+            # If we are GCS, we should ideally simply copy object to object.
+            # Our current interface is limited.
+            
+            # Let's rely on the fact that `VertexImageGenerator` put it in `pantry/candidates`.
+            # We want to move it to `resources`.
+            
+            # Extract filename from URL/Path
+            source_filename = os.path.basename(temp_path)
+            
+            # This is fragile but works for the current "Local" impl which expects full path.
+            # We construct the source key.
+            pass
+            
+            # Check if valid source for Copy
+            # For LocalStorageProvider, `copy` takes a source_path (absolute).
+            # We need to resolve `temp_path` (which might be a URL) to an absolute path IF local.
+            
+            real_source_path = temp_path
+            if isinstance(storage_provider, type(storage_provider).__bases__[0]): # Is Local? No easy check without imports
+                 # Simple check: if it starts with /static, map it
+                 if temp_path.startswith('/static'):
+                     real_source_path = os.path.join(os.getcwd(), temp_path.lstrip('/'))
+            
+            # Try copy
+            # Dest folder: resources
+            try:
+                final_image_filename = storage_provider.copy(real_source_path, new_filename, "resources")
+            except Exception as e:
+                print(f"Error copying image: {e}")
+                final_image_filename = article_data.get('image_filename') # Fallback
 
         # 2. Prepare Resource Object
         new_resource = {
@@ -397,23 +434,25 @@ def save_resource():
 def save_podcast():
     try:
         data = request.get_json()
-        temp_path = data.get('temp_path')
+        temp_path = data.get('temp_path') # This is the URL now
         ingredient_name = data.get('ingredient_name', 'audio')
         
-        if not temp_path or not os.path.exists(temp_path):
-             return jsonify({'success': False, 'error': 'Temp file missing'}), 400
-
-        # Create saved directory
-        podcasts_dir = os.path.join(os.getcwd(), 'static', 'podcasts')
-        os.makedirs(podcasts_dir, exist_ok=True)
+        storage_provider = prompts_bp.storage_provider
         
+        if not temp_path:
+             return jsonify({'success': False, 'error': 'Temp path missing'}), 400
+
         slug = re.sub(r'[^a-z0-9]+', '-', ingredient_name.lower()).strip('-')
         filename = f"{slug}_{uuid.uuid4().hex[:6]}.mp3"
-        final_path = os.path.join(podcasts_dir, filename)
         
-        shutil.move(temp_path, final_path)
+        # Resolve Source
+        real_source_path = temp_path
+        if temp_path.startswith('/static'):
+             real_source_path = os.path.join(os.getcwd(), temp_path.lstrip('/'))
+
+        final_url = storage_provider.copy(real_source_path, filename, "podcasts")
         
-        return jsonify({'success': True, 'path': f"/static/podcasts/{filename}"})
+        return jsonify({'success': True, 'path': final_url})
 
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
