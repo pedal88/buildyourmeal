@@ -22,6 +22,13 @@ def verify_data():
             print(f"Chefs: {chef_count}")
             print(f"Ingredients: {ingredient_count}")
             print(f"Recipes: {recipe_count}")
+
+            if recipe_count > 0:
+                print("\nSample Recipes:")
+                recipes = db.session.query(Recipe).limit(5).all()
+                for r in recipes:
+                    print(f"- [{r.id}] {r.title} (Chef: {r.chef_id})")
+
             
         except Exception as e:
             print(f"Error connecting/querying: {e}")

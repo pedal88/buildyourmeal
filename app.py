@@ -467,6 +467,17 @@ def recipe_image_generation_create():
             return jsonify({'success': False, 'error': 'Prompt required'})
             
         # Generate Image
+        try:
+            # Check if using Vertex or Photographer Service
+            # For now, assuming generate_actual_image returns a list of PIL images
+            images = generate_actual_image(prompt)
+            if not images:
+                 return jsonify({'success': False, 'error': 'No image generated'})
+            img = images[0]
+        except Exception as e:
+             print(f"Error calling AI generation: {e}")
+             return jsonify({'success': False, 'error': f"Generation failed: {str(e)}"})
+             
         # Save to Temp
         filename = f"temp_{uuid.uuid4().hex}.png"
         
