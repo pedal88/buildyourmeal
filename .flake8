@@ -1,0 +1,17 @@
+[flake8]
+exclude =
+    .git,
+    __pycache__,
+    venv,
+    .venv,
+    env,
+    google-cloud-sdk,
+    build,
+    dist,
+    node_modules,
+    static/
+max-line-length = 127
+max-complexity = 10
+count = True
+statistics = True
+show-source = True

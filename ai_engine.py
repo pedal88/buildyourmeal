@@ -176,7 +176,7 @@ def get_pantry_id(name: str):
     return None
 
 def set_pantry_memory(slim_context):
-    global pantry_map
+
     for item in slim_context:
         # Handle minified keys from pantry_service (n=name, i=id)
         name = item.get('n', item.get('name'))

@@ -18,7 +18,7 @@ from ai_engine import generate_recipe_ai, get_pantry_id, chefs_data, generate_re
 from services.photographer_service import generate_visual_prompt, generate_actual_image, generate_visual_prompt_from_image, load_photographer_config, generate_image_variation, process_external_image
 from services.vertex_image_service import VertexImageGenerator
 from services.web_scraper_service import WebScraper
-from services.storage_service import get_storage_provider
+from services.storage_service import get_storage_provider, GoogleCloudStorageProvider
 from utils.image_helpers import generate_ingredient_placeholder
 import base64
 from io import BytesIO

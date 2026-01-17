@@ -8,11 +8,6 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app import app, db
 
-def dump_node(buf, metadata, item):
-    pass
-
-def dump(sql, *multiparams, **params):
-    print(sql.compile(dialect=engine.dialect))
 
 def generate_ddl():
     # Use a mock engine to capture DDL
