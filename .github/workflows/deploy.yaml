@@ -112,12 +112,43 @@ jobs:
       - name: Update Migration Job
         run: |
           # Updates the job definition to use the new image we just built
-          gcloud run jobs update ${{ env.MIGRATION_JOB_NAME }} \
-            --image ${{ env.GAR_LOCATION }}/${{ env.SERVICE_NAME }}:${{ github.sha }} \
-            --region ${{ env.REGION }} \
-            --set-env-vars FLASK_APP=app.py \
-            # command is assumed to be defined in the job creation (e.g. 'flask db upgrade')
-            # or we can force it here with --command "flask db upgrade"
+          # Creates or Replaces the job definition to use the new image
+          # We use `replace` with a YAML definition to ensure idempotency (Create if missing, Update if exists)
+          cat <<EOF > job.yaml
+          apiVersion: run.googleapis.com/v1
+          kind: Job
+          metadata:
+            name: ${{ env.MIGRATION_JOB_NAME }}
+            labels:
+              cloud.googleapis.com/location: ${{ env.REGION }}
+            annotations:
+              run.googleapis.com/launch-stage: BETA
+          spec:
+            template:
+              metadata:
+                annotations:
+                  run.googleapis.com/execution-environment: gen2
+              spec:
+                template:
+                  spec:
+                    containers:
+                    - image: ${{ env.GAR_LOCATION }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
+                      command: ["flask", "db", "upgrade"]
+                      env:
+                      - name: DB_BACKEND
+                        value: "cloudsql"
+                      - name: INSTANCE_CONNECTION_NAME
+                        value: "gen-lang-client-0770637546:us-central1:buildyourmeal-db"
+                      - name: DB_USER
+                        value: "postgres"
+                      # We need DB_PASS here. Ideally from Secret Manager, but for now we might need to 
+                      # rely on the Identity (Service Account) if using IAM auth, OR fail if we don't have the password.
+                      # Since we set up IAM auth in the code, let's try to run without password.
+                      # If IAM auth fails, we should add DB_PASS secret to GitHub and map it here.
+                    serviceAccountName: ${{ env.WIF_SERVICE_ACCOUNT }}
+          EOF
+          
+          gcloud run jobs replace job.yaml --region ${{ env.REGION }}
 
       - name: Execute Migration Job
         run: |
