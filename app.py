@@ -91,37 +91,31 @@ def get_protein_category(protein_name):
         if protein_name in category['examples']:
             return category['category']
     return "Other"
-@app.context_processor
-def utility_processor():
-    def update_query_params(**kwargs):
-        args = request.args.copy()
-        for key, value in kwargs.items():
-            args[key] = value
-        return url_for(request.endpoint, **args)
-    
-    def get_recipe_image_url(recipe):
-        """Generates the correct URL for a recipe image based on storage backend."""
-        if not recipe or not recipe.image_filename:
-            return None
-        
-        # If using GCS, return the public URL directly
-        # We construct it manually or use storage_provider if it had a get_url method
-        # But for now, we know the pattern or can assume public access for simplicity
-        # The storage provider saves as "recipes/<filename>" or just "<filename>" in recipes folder?
-        # Let's check storage provider usage.
-        
-        # Access global storage_provider
-        is_gcs = isinstance(storage_provider, GoogleCloudStorageProvider)
-        
-        if is_gcs:
-            # GCS Public URL Convention: https://storage.googleapis.com/<bucket>/<blob_path>
-            # The app saves/moves items to "recipes" folder.
-            return f"https://storage.googleapis.com/{storage_provider.bucket_name}/recipes/{recipe.image_filename}"
-        else:
-            # Local Flask Static
-            return url_for('static', filename='recipes/' + recipe.image_filename)
+def update_query_params(**kwargs):
+    args = request.args.copy()
+    for key, value in kwargs.items():
+        args[key] = value
+    return url_for(request.endpoint, **args)
 
-    return dict(update_query_params=update_query_params, get_recipe_image_url=get_recipe_image_url)
+def get_recipe_image_url(recipe):
+    """Generates the correct URL for a recipe image based on storage backend."""
+    if not recipe or not recipe.image_filename:
+        return None
+    
+    # Access global storage_provider
+    is_gcs = isinstance(storage_provider, GoogleCloudStorageProvider)
+    
+    if is_gcs:
+        # GCS Public URL Convention
+        return f"https://storage.googleapis.com/{storage_provider.bucket_name}/recipes/{recipe.image_filename}"
+    else:
+        # Local Flask Static
+        return url_for('static', filename='recipes/' + recipe.image_filename)
+
+app.jinja_env.globals.update(
+    update_query_params=update_query_params,
+    get_recipe_image_url=get_recipe_image_url
+)
 
 
 
