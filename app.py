@@ -9,6 +9,7 @@ print(f"--- CONFIG DEBUG: DB_BACKEND={os.getenv('DB_BACKEND', 'local')} ---")
 import uuid
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, abort
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
+from flask_migrate import Migrate
 from database.db_connector import configure_database
 from database.models import db, Ingredient, Recipe, Instruction, RecipeIngredient, RecipeMealType, User
 from utils.decorators import admin_required
@@ -75,8 +76,10 @@ def parse_chef_dna(prompt):
                 sections[current_key] = [line]
     return sections
 app.config['SECRET_KEY'] = 'dev-key-secret'
-# Database Configuration (Local vs Cloud SQL)
+# Initialize DB
 configure_database(app)
+db.init_app(app)
+migrate = Migrate(app, db)
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 @app.template_filter('get_protein_category')
@@ -120,7 +123,7 @@ def utility_processor():
 
     return dict(update_query_params=update_query_params, get_recipe_image_url=get_recipe_image_url)
 
-db.init_app(app)
+
 
 # Initialize Storage Provider
 storage_provider = get_storage_provider(app.root_path)
@@ -1848,6 +1851,8 @@ def approve_ingredient_image():
     return jsonify(result)
 
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all() # Ensure tables exist
+    # with app.app_context():
+    #     db.create_all() # Ensure tables exist
+    #     if not os.path.exists('static/pantry'):
+    #         os.makedirs('static/pantry')
     app.run(debug=True, port=8000)
