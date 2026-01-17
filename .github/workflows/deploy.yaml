@@ -138,13 +138,19 @@ jobs:
                       - name: DB_BACKEND
                         value: "cloudsql"
                       - name: INSTANCE_CONNECTION_NAME
-                        value: "gen-lang-client-0770637546:us-central1:buildyourmeal-db"
+                        value: "gen-lang-client-0770637546:us-central1:buildyourmeal"
                       - name: DB_USER
                         value: "postgres"
                       - name: DB_NAME
                         value: "postgres"
                       - name: DB_PASS
                         value: "${{ secrets.DB_PASS }}"
+                      - name: GOOGLE_API_KEY
+                        value: "${{ secrets.GOOGLE_API_KEY }}"
+                      - name: STORAGE_BACKEND
+                        value: "gcs"
+                      - name: GCS_BUCKET_NAME
+                        value: "buildyourmeal-assets"
                     serviceAccountName: ${{ env.WIF_SERVICE_ACCOUNT }}
           EOF
           
