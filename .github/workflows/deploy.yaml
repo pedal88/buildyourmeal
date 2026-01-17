@@ -141,10 +141,10 @@ jobs:
                         value: "gen-lang-client-0770637546:us-central1:buildyourmeal-db"
                       - name: DB_USER
                         value: "postgres"
-                      # We need DB_PASS here. Ideally from Secret Manager, but for now we might need to 
-                      # rely on the Identity (Service Account) if using IAM auth, OR fail if we don't have the password.
-                      # Since we set up IAM auth in the code, let's try to run without password.
-                      # If IAM auth fails, we should add DB_PASS secret to GitHub and map it here.
+                      - name: DB_NAME
+                        value: "postgres"
+                      - name: DB_PASS
+                        value: "${{ secrets.DB_PASS }}"
                     serviceAccountName: ${{ env.WIF_SERVICE_ACCOUNT }}
           EOF
           
