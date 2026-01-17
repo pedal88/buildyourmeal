@@ -22,8 +22,7 @@
     <div
         class="relative w-full aspect-video md:aspect-[21/9] rounded-3xl overflow-hidden shadow-xl mb-12 bg-orange-50 group border border-slate-200">
         {% if recipe.image_filename %}
-        <img src="{{ url_for('static', filename='recipes/' + recipe.image_filename) }}" alt="{{ recipe.title }}"
-            class="w-full h-full object-cover">
+        <img src="{{ get_recipe_image_url(recipe) }}" alt="{{ recipe.title }}" class="w-full h-full object-cover">
         {% else %}
         <!-- Contextual Placeholder -->
         <div class="absolute inset-0 bg-gradient-to-br from-orange-50 to-white opacity-50"></div>

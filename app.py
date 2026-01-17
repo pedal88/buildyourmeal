@@ -95,7 +95,30 @@ def utility_processor():
         for key, value in kwargs.items():
             args[key] = value
         return url_for(request.endpoint, **args)
-    return dict(update_query_params=update_query_params)
+    
+    def get_recipe_image_url(recipe):
+        """Generates the correct URL for a recipe image based on storage backend."""
+        if not recipe or not recipe.image_filename:
+            return None
+        
+        # If using GCS, return the public URL directly
+        # We construct it manually or use storage_provider if it had a get_url method
+        # But for now, we know the pattern or can assume public access for simplicity
+        # The storage provider saves as "recipes/<filename>" or just "<filename>" in recipes folder?
+        # Let's check storage provider usage.
+        
+        # Access global storage_provider
+        is_gcs = isinstance(storage_provider, GoogleCloudStorageProvider)
+        
+        if is_gcs:
+            # GCS Public URL Convention: https://storage.googleapis.com/<bucket>/<blob_path>
+            # The app saves/moves items to "recipes" folder.
+            return f"https://storage.googleapis.com/{storage_provider.bucket_name}/recipes/{recipe.image_filename}"
+        else:
+            # Local Flask Static
+            return url_for('static', filename='recipes/' + recipe.image_filename)
+
+    return dict(update_query_params=update_query_params, get_recipe_image_url=get_recipe_image_url)
 
 db.init_app(app)
 
@@ -484,9 +507,9 @@ def recipe_image_generation_create():
         # Save via Storage
         img_byte_arr = BytesIO()
         img.save(img_byte_arr, format='PNG')
-        storage_provider.save(img_byte_arr.getvalue(), filename, "temp")
+        file_url = storage_provider.save(img_byte_arr.getvalue(), filename, "temp")
         
-        return jsonify({'success': True, 'filename': filename})
+        return jsonify({'success': True, 'filename': filename, 'url': file_url})
         
     except Exception as e:
         print(f"Gen Error: {e}")
@@ -502,13 +525,12 @@ def recipe_image_generation_save():
         if not filename or not recipe_id:
             return jsonify({'success': False, 'error': 'Missing data'})
             
-        # Move file
-        src = os.path.join(app.root_path, 'static', 'temp', filename)
+        # Move file using Storage Provider (Abstracts Local vs Cloud)
         new_filename = f"recipe_{recipe_id}_{uuid.uuid4().hex[:8]}.png"
-        dst = os.path.join(app.root_path, 'static', 'recipes', new_filename)
         
-        if os.path.exists(src):
-            shutil.move(src, dst)
+        try:
+            # Move from 'temp' to 'recipes'
+            storage_provider.move(filename, "temp", new_filename, "recipes")
             
             # Update DB
             recipe = db.session.get(Recipe, int(recipe_id))
@@ -516,10 +538,12 @@ def recipe_image_generation_save():
             db.session.commit()
             
             return jsonify({'success': True})
-        else:
-            return jsonify({'success': False, 'error': 'Temp file not found'})
+            
+        except FileNotFoundError:
+             return jsonify({'success': False, 'error': 'Temp file not found or expired'})
             
     except Exception as e:
+        print(f"Save Logic Error: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/new-recipe', methods=['GET', 'POST'])
@@ -1043,22 +1067,26 @@ def update_ingredient_image_api():
         if not ingredient:
             return jsonify({'success': False, 'error': 'Ingredient not found'}), 404
 
-        # Move File
-        src_path = os.path.join(app.root_path, 'static', 'temp', temp_filename)
-        if not os.path.exists(src_path):
-             return jsonify({'success': False, 'error': 'Temp image not found'}), 404
-             
         # Create new unique name to bust cache
         new_filename = f"{ingredient.food_id}_{uuid.uuid4().hex[:8]}.png"
-        dst_path = os.path.join(app.root_path, 'static', 'pantry', new_filename)
         
-        # Remove old image if it exists and isn't used by others? 
-        # For now, let's just save the new one. Clean up later.
+        # Use storage provider to move from temp to pantry
+        # This works for both local and GCS storage
+        try:
+            new_url = storage_provider.move(temp_filename, "temp", new_filename, "pantry")
+        except FileNotFoundError:
+            return jsonify({'success': False, 'error': 'Temp image not found'}), 404
         
-        shutil.move(src_path, dst_path)
-        
-        # Update DB
-        ingredient.image_url = f"pantry/{new_filename}"
+        # Update DB with the new image URL
+        # For GCS, this will be the full public URL
+        # For local, this will be /static/pantry/{filename}
+        if new_url.startswith('http'):
+            # GCS - store full URL
+            ingredient.image_url = new_url
+        else:
+            # Local - store relative path
+            ingredient.image_url = f"pantry/{new_filename}"
+            
         if image_prompt:
             ingredient.image_prompt = image_prompt
             
@@ -1066,7 +1094,7 @@ def update_ingredient_image_api():
         
         return jsonify({
             'success': True,
-            'new_image_url': url_for('static', filename=ingredient.image_url)
+            'new_image_url': new_url
         })
 
     except Exception as e:

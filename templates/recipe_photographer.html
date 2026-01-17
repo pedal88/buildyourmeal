@@ -200,7 +200,7 @@
 
             if (data.success) {
                 currentImageFilename = data.filename;
-                resultImg.src = "/static/temp/" + data.filename;
+                resultImg.src = data.url;
                 resultImg.classList.remove('hidden');
                 placeholder.classList.add('hidden');
                 saveActions.classList.remove('hidden');

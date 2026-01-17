@@ -126,8 +126,7 @@
                                         <div class="h-10 w-10 shrink-0">
                                             {% if recipe.image_filename %}
                                             <img class="h-10 w-10 rounded-full object-cover"
-                                                src="{{ url_for('static', filename='recipes/' + recipe.image_filename) }}"
-                                                alt="">
+                                                src="{{ get_recipe_image_url(recipe) }}" alt="">
                                             {% else %}
                                             <div
                                                 class="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center text-xs">

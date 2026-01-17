@@ -1,61 +1,45 @@
-# Deployment Guide
+# 🚀 Deployment Guide (CI/CD)
 
-This guide describes how to deploy the **Build Your Meal** application to **Google Cloud Run** and initialize the production **Cloud SQL** database.
+**Current Status:** Automated via GitHub Actions
 
-## Prerequisites
-1.  **Google Cloud Project**: You need an active project ID.
-2.  **Tooling**:
-    *   **Google Cloud SDK (`gcloud`)**: [Install Guide](https://cloud.google.com/sdk/docs/install). Run `gcloud auth login` and `gcloud config set project [PROJECT_ID]`.
-    *   **Docker**: Installed and running locally.
-3.  **APIs Enabled**: Cloud Run, Cloud Build, Cloud SQL Admin.
-4.  **Infrastructure**:
-    *   **GCS Bucket**: `buildyourmeal-assets` (Created in Phase 1).
-    *   **Cloud SQL Instance**: Postgres 15+ (Created manually in Console).
-    *   **Database**: Created inside the instance (e.g., `kitchen_db`).
-    *   **User**: Created inside the instance (e.g., `appuser` with password).
+> [!WARNING]
+> **DEVELOPMENT WARNING:** Do not store this project in OneDrive/Google Drive. File locking causes build failures. Use a local directory (e.g., `~/Projects`).
 
-## 1. Deploy Application
+## 1. The New Workflow
+Deployment is now **fully automated**. You do not need to run `gcloud` commands manually.
 
-Run the deployment script. It will build the container and deploy it to Cloud Run.
-
-```bash
-chmod +x scripts/deploy.sh
-./scripts/deploy.sh [YOUR_PROJECT_ID]
-```
-
-You will be prompted for:
-*   **Database User**: `appuser`
-*   **Database Password**: `[HIDDEN]`
-*   **Database Name**: `kitchen_db`
-*   **Connection Name**: `project-id:region:instance-name`
-
-**Finding the Connection Name**:
-1.  Go to Google Cloud Console -> SQL.
-2.  Click on your instance.
-3.  Copy the "Connection name" from the Overview page.
-
-## 2. Initialize Production Database
-
-After deployment (or before), you need to create the tables in the empty production database.
-
-1.  Export the necessary credentials in your local shell (the script uses them to connect securely via proxy):
+1.  **Develop Locally:** Make changes in your local `~/Projects/bym2026` folder.
+2.  **Commit & Push:**
     ```bash
-    export INSTANCE_CONNECTION_NAME='project-id:region:instance-name'
-    export DB_USER='appuser'
-    export DB_PASS='secret'
-    export DB_NAME='kitchen_db'
-    export GOOGLE_APPLICATION_CREDENTIALS='/path/to/key.json' # If not using gcloud auth
+    git add .
+    git commit -m "feat: your amazing change"
+    git push origin main
     ```
+3.  **Watch it Fly:**
+    *   Go to **GitHub -> Actions** tab.
+    *   Watch the pipeline: Lint -> Security Scan -> Build -> Migrate DB -> Deploy.
+    *   ✅ **Success:** App updates automatically.
+    *   ❌ **Failure:** Pipeline stops. Old version keeps running.
 
-2.  Run the initialization script:
-    ```bash
-    python scripts/init_prod_db.py
-    ```
+## 2. Prerequisites (One-Time Setup)
+This pipeline relies on **Workload Identity Federation (WIF)** for keyless security.
 
-3.  Confirm the prompt. The script will use the Google Cloud SQL Connector to safelytunnel to your instance and run `db.create_all()`.
+1.  **Run Setup Script:**
+    (If not done yet) Run `scripts/setup_wif.sh` in Cloud Shell.
 
-## 3. Verify Deployment
+2.  **Set GitHub Secrets:**
+    Add these to your repository settings:
+    *   `PROJECT_ID`: `gen-lang-client-0770637546`
+    *   `WIF_PROVIDER`: (Output from script)
+    *   `WIF_SERVICE_ACCOUNT`: (Output from script)
 
-1.  Open the **Service URL** provided by the deployment script output.
-2.  Navigate to `/pantry`.
-3.  If successful, the app should load (likely empty/default data) without errors.
+## 3. Troubleshooting
+*   **Pipeline Failed?** Check the Logs in GitHub Actions.
+*   **Database Error?** Check the "Execute Migration Job" step logs.
+*   **Manual Deployment (Emergency Only):**
+    *   See `README_CLOUD_DEPLOYMENT.md` for the emergency Cloud Shell method.
+    *   **Do not use local `scripts/deploy.sh`** (It is deprecated).
+
+## 4. History
+*   **2026-01-17:** Transitioned from manual OneDrive scripts to GitHub Actions.
+*   **Deprecated:** `scripts/deploy.sh`, `scripts/smart_deploy.py`.

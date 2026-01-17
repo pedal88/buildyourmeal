@@ -1,4 +1,5 @@
 #!/bin/bash
+echo "⚠️ WARNING: Manual deployment is deprecated. Please push to GitHub to trigger the CI/CD pipeline."
 set -e
 
 # Configuration

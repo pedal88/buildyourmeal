@@ -1,50 +1,136 @@
-name: Build and Deploy to Cloud Run
+name: Production CI/CD
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
+  pull_request:
+    branches: [ main, feature/* ]
 
 env:
-  PROJECT_ID: gen-lang-client-0770637546
+  PROJECT_ID: ${{ secrets.PROJECT_ID }}
   REGION: us-central1
+  GAR_LOCATION: us-central1-docker.pkg.dev/${{ secrets.PROJECT_ID }}/app-repo
   SERVICE_NAME: bym-app
+  MIGRATION_JOB_NAME: bym-db-migration
+  WIF_PROVIDER: ${{ secrets.WIF_PROVIDER }} # projects/123/.../providers/my-provider
+  WIF_SERVICE_ACCOUNT: ${{ secrets.WIF_SERVICE_ACCOUNT }} # github-deployer@...
 
 jobs:
-  deploy:
+  # ------------------------------------------------------------------
+  # STAGE 1: LINT & TEST
+  # Runs on every push to feature branches and main.
+  # ------------------------------------------------------------------
+  test:
+    name: Lint & Test
     runs-on: ubuntu-latest
-    permissions:
-      contents: 'read'
-      id-token: 'write'
-
     steps:
-      - name: Checkout
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Google Auth
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 pytest
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Run Linting (Flake8)
+        run: |
+          # stop the build if there are Python syntax errors or undefined names
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
+          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+      - name: Run Unit Tests
+        run: |
+          # A simple pytest run. Assumes 'tests/' folder exists.
+          # If no tests exist yet, we echo a warning instead of failing to allow initial setup.
+          if [ -d "tests" ]; then
+            pytest tests/
+          else
+            echo "::warning::No tests/ directory found. Skipping unit tests."
+          fi
+
+  # ------------------------------------------------------------------
+  # STAGE 2: BUILD, SECURE & DEPLOY
+  # Runs ONLY on push to main (Production Deploy)
+  # ------------------------------------------------------------------
+  deploy:
+    name: Build & Deploy to Prod
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # Required for Workload Identity Federation
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # --- AUTHENTICATION (KEYLESS) ---
+      - name: Authenticate to Google Cloud
         id: auth
         uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: '${{ secrets.WIF_PROVIDER }}'
-          service_account: '${{ secrets.WIF_SERVICE_ACCOUNT }}'
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.WIF_SERVICE_ACCOUNT }}
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
         with:
-          project_id: '${{ env.PROJECT_ID }}'
+          project_id: ${{ env.PROJECT_ID }}
 
-      - name: Authorize Docker push
-        run: gcloud auth configure-docker
+      - name: Configure Docker Auth
+        run: |
+          gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
 
+      # --- BUILD & PUSH ---
       - name: Build and Push Container
         run: |
-          docker build -t gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }} .
-          docker push gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
+          IMAGE_TAG=${{ env.GAR_LOCATION }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
+          # Build with latest tag and specific SHA
+          docker build -t $IMAGE_TAG -t ${{ env.GAR_LOCATION }}/${{ env.SERVICE_NAME }}:latest .
+          docker push ${{ env.GAR_LOCATION }}/${{ env.SERVICE_NAME }} --all-tags
 
+      # --- SECURITY SCAN (TRIVY) ---
+      - name: Run Trivy Vulnerability Scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: '${{ env.GAR_LOCATION }}/${{ env.SERVICE_NAME }}:${{ github.sha }}'
+          format: 'table'
+          exit-code: '1' # Fail on severe vulnerabilities
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+      # --- DATABASE MIGRATION (CLOUD RUN JOB) ---
+      - name: Update Migration Job
+        run: |
+          # Updates the job definition to use the new image we just built
+          gcloud run jobs update ${{ env.MIGRATION_JOB_NAME }} \
+            --image ${{ env.GAR_LOCATION }}/${{ env.SERVICE_NAME }}:${{ github.sha }} \
+            --region ${{ env.REGION }} \
+            --set-env-vars FLASK_APP=app.py \
+            # command is assumed to be defined in the job creation (e.g. 'flask db upgrade')
+            # or we can force it here with --command "flask db upgrade"
+
+      - name: Execute Migration Job
+        run: |
+          # Execute the job and wait for completion. Fails pipeline if job fails.
+          gcloud run jobs execute ${{ env.MIGRATION_JOB_NAME }} --region ${{ env.REGION }} --wait
+
+      # --- DEPLOY TO C_RUN ---
       - name: Deploy to Cloud Run
         uses: google-github-actions/deploy-cloudrun@v2
         with:
-          service: '${{ env.SERVICE_NAME }}'
-          region: '${{ env.REGION }}'
-          image: 'gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }}'
-          flags: '--allow-unauthenticated' # Optional: if you want public access
+          service: ${{ env.SERVICE_NAME }}
+          region: ${{ env.REGION }}
+          image: ${{ env.GAR_LOCATION }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
+          flags: '--allow-unauthenticated'
+          # Env vars and Secrets should ideally be managed via Terraform (IaC) or
+          # already matched in the revision. We just update the image here.
