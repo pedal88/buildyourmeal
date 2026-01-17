@@ -133,7 +133,7 @@ jobs:
                   spec:
                     containers:
                     - image: ${{ env.GAR_LOCATION }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
-                      command: ["flask", "db", "stamp", "head"]
+                      command: ["flask", "db", "upgrade"]
                       env:
                       - name: DB_BACKEND
                         value: "cloudsql"
