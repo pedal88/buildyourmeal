@@ -169,5 +169,15 @@ jobs:
           region: ${{ env.REGION }}
           image: ${{ env.GAR_LOCATION }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
           flags: '--allow-unauthenticated'
-          # Env vars and Secrets should ideally be managed via Terraform (IaC) or
-          # already matched in the revision. We just update the image here.
+          env_vars: |
+            FLASK_APP=app.py
+            DB_BACKEND=cloudsql
+            INSTANCE_CONNECTION_NAME=gen-lang-client-0770637546:us-central1:buildyourmeal
+            DB_USER=postgres
+            DB_NAME=postgres
+            STORAGE_BACKEND=gcs
+            GCS_BUCKET_NAME=buildyourmeal-assets
+          secrets: |
+            DB_PASS=DB_PASS:latest
+            GOOGLE_API_KEY=GOOGLE_API_KEY:latest
+
